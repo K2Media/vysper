@@ -127,20 +127,24 @@ public class ProtocolWorker implements StanzaProcessor {
                     return;
                 } else if(!from.getDomain().equals(sessionContext.getInitiatingEntity().getDomain())) {
                     // make sure the from attribute refers to the correct remote server
-                    logger.debug("from domain does not equal sessionContext.getInitiatingEntity.getDomain() -- Normally this would be an error, but this is OK for clustering");
+                    logger.debug("from domain does not equal sessionContext.getInitiatingEntity.getDomain() -- Normally this would be an error, but this is OK for clustering: " + from.getDomain());
 //                        Stanza errorStanza = ServerErrorResponses.getStanzaError(StanzaErrorCondition.UNKNOWN_SENDER,
 //                                coreStanza, StanzaErrorType.MODIFY, "Incorrect from attribute", null, null);
 //                        ResponseWriter.writeResponse(sessionContext, errorStanza);
 //                        return;
                 }
 
+                String subdomainToMatch = "";
                 Entity to = stanza.getTo();
-                String[] chunksArray = to.getDomain().split(".");
-                int chunks = chunksArray.length;
-                String tldChunk = chunksArray[chunks - 1];
-                String domainChunk = chunksArray[chunks - 2];
-                String subdomainToMatch = domainChunk + "." + tldChunk;
-
+                if (to != null && to.getDomain() != null) {
+                    String[] chunksArray = to.getDomain().split(".");
+                    int chunks = chunksArray.length;
+                    if (chunks >= 2) {
+                        String tldChunk = chunksArray[chunks - 1];
+                        String domainChunk = chunksArray[chunks - 2];
+                        subdomainToMatch = domainChunk + "." + tldChunk;
+                    }
+                }
                 if(to == null) {
                     // TODO what's the appropriate error? StreamErrorCondition.IMPROPER_ADDRESSING?
                     Stanza errorStanza = ServerErrorResponses.getStanzaError(StanzaErrorCondition.BAD_REQUEST,
@@ -154,7 +158,7 @@ public class ProtocolWorker implements StanzaProcessor {
                     ResponseWriter.writeResponse(sessionContext, errorStanza);
                     return;                    
                     
-                }
+                } //todo: should we verify whether from.domain == initiating domain?
 
                 // rewrite namespace
                 stanza = StanzaBuilder.rewriteNamespace(stanza, NamespaceURIs.JABBER_SERVER, NamespaceURIs.JABBER_CLIENT);
