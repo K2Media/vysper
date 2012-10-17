@@ -27,6 +27,7 @@ import org.apache.vysper.xmpp.addressing.Entity;
 import org.apache.vysper.xmpp.addressing.EntityImpl;
 import org.apache.vysper.xmpp.delivery.StanzaRelay;
 import org.apache.vysper.xmpp.delivery.failure.ReturnErrorToSenderFailureStrategy;
+import org.apache.vysper.xmpp.modules.extension.xep0160_offline_storage.OfflineStorageProvider;
 import org.apache.vysper.xmpp.server.ServerRuntimeContext;
 import org.apache.vysper.xmpp.server.SessionContext;
 import org.apache.vysper.xmpp.stanza.MessageStanza;
@@ -36,6 +37,8 @@ import org.apache.vysper.xmpp.stanza.XMPPCoreStanza;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
+
 /**
  * handling message stanzas
  *
@@ -44,6 +47,16 @@ import org.slf4j.LoggerFactory;
 public class MessageHandler extends XMPPCoreStanzaHandler {
 
     final Logger logger = LoggerFactory.getLogger(MessageHandler.class);
+
+    private ServerRuntimeContext serverRuntimeContext;
+
+    public MessageHandler(ServerRuntimeContext serverRuntimeContext) {
+        this.serverRuntimeContext = serverRuntimeContext;
+    }
+
+    public MessageHandler() {
+
+    }
 
     public String getName() {
         return "message";
@@ -129,6 +142,13 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
                     stanzaBuilder.addPreparedElement(preparedElement);
                 }
                 stanza = XMPPCoreStanza.getWrapper(stanzaBuilder.build());
+                // check for message receipt xep-184
+                List<XMLElement> receipts = stanza.getInnerElementsNamed("received", "urn:xmpp:receipts");
+                if (receipts != null && !receipts.isEmpty()) {
+                    // see if we have a receipt for a message
+                    if (serverRuntimeContext != null) {
+                        OfflineStorageProvider offlineStorageProvider = serverRuntimeContext.getStorageProvider(OfflineStorageProvider.class);
+                    }
             }
 
             StanzaRelay stanzaRelay = serverRuntimeContext.getStanzaRelay();

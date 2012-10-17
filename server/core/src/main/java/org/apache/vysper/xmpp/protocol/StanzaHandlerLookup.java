@@ -46,13 +46,13 @@ public class StanzaHandlerLookup extends AbstractStanzaHandlerLookup {
 
     private IQHandler iqHandler = new RelayingIQHandler();
 
-    private MessageHandler messageHandler = new MessageHandler();
+    protected ServerRuntimeContext serverRuntimeContext;
+
+    private MessageHandler messageHandler = new MessageHandler(serverRuntimeContext);
 
     private PresenceHandler presenceHandler = new PresenceHandler();
 
     private static final ServiceUnavailableStanzaErrorHandler SERVICE_UNAVAILABLE_STANZA_ERROR_HANDLER = new ServiceUnavailableStanzaErrorHandler();
-
-    protected ServerRuntimeContext serverRuntimeContext;
 
     public StanzaHandlerLookup(ServerRuntimeContext serverRuntimeContext) {
         this.serverRuntimeContext = serverRuntimeContext;
