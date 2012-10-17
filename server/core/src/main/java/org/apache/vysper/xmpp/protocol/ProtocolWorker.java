@@ -133,15 +133,21 @@ public class ProtocolWorker implements StanzaProcessor {
 //                        ResponseWriter.writeResponse(sessionContext, errorStanza);
 //                        return;
                 }
-                
+
                 Entity to = stanza.getTo();
+                String[] chunksArray = to.getDomain().split(".");
+                int chunks = chunksArray.length;
+                String tldChunk = chunksArray[chunks - 1];
+                String domainChunk = chunksArray[chunks - 2];
+                String subdomainToMatch = domainChunk + "." + tldChunk;
+
                 if(to == null) {
                     // TODO what's the appropriate error? StreamErrorCondition.IMPROPER_ADDRESSING?
                     Stanza errorStanza = ServerErrorResponses.getStanzaError(StanzaErrorCondition.BAD_REQUEST,
                             coreStanza, StanzaErrorType.MODIFY, "Missing to attribute", null, null);
                     ResponseWriter.writeResponse(sessionContext, errorStanza);
                     return;                    
-                } else if(!to.getDomain().equals(serverRuntimeContext.getServerEnitity().getDomain())) {
+                } else if(!serverRuntimeContext.getServerEnitity().getDomain().contains(subdomainToMatch)) {
                     // TODO what's the appropriate error? StreamErrorCondition.IMPROPER_ADDRESSING?
                     Stanza errorStanza = ServerErrorResponses.getStanzaError(StanzaErrorCondition.BAD_REQUEST,
                             coreStanza, StanzaErrorType.MODIFY, "Invalid to attribute", null, null);
