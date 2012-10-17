@@ -29,6 +29,8 @@ import org.apache.vysper.xmpp.stanza.Stanza;
 import org.apache.vysper.xmpp.stanza.StanzaErrorCondition;
 import org.apache.vysper.xmpp.stanza.StanzaErrorType;
 import org.apache.vysper.xmpp.stanza.XMPPCoreStanza;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * writes protocol level errors
@@ -36,6 +38,8 @@ import org.apache.vysper.xmpp.stanza.XMPPCoreStanza;
  * @author The Apache MINA Project (dev@mina.apache.org)
  */
 public class ResponseWriter {
+
+    static final Logger logger = LoggerFactory.getLogger(ResponseWriter.class);
 
     public static void writeUnsupportedStanzaError(SessionContext sessionContext) {
 
@@ -69,9 +73,12 @@ public class ResponseWriter {
 
     public static void handleProtocolError(ProtocolException protocolException, SessionContext sessionContext,
             Stanza receivedStanza) {
+        logger.error("in handleProtocolError for stanza: " + receivedStanza.toString());
         Stanza errorStanza = null;
         if (protocolException != null)
             errorStanza = protocolException.getErrorStanza();
+
+        logger.error("in handleProtocolError found errorStanza: " + errorStanza.toString());
 
         if (errorStanza == null) {
             errorStanza = ServerErrorResponses.getStreamError(StreamErrorCondition.BAD_FORMAT,
@@ -84,17 +91,23 @@ public class ResponseWriter {
         Stanza errorStanza = ServerErrorResponses.getStreamError(
                 StreamErrorCondition.UNSUPPORTED_STANZA_TYPE, sessionContext.getXMLLang(),
                 "could not process incoming stanza", receivedStanza);
+        logger.error("in handleUnsupportedStanzaType: found errorStanza: " + errorStanza.toString());
+
         writeErrorAndClose(sessionContext, errorStanza);
     }
 
     public void handleNotAuthorized(SessionContext sessionContext, Stanza receivedStanza) {
         Stanza errorStanza = ServerErrorResponses.getStreamError(StreamErrorCondition.NOT_AUTHORIZED,
                 sessionContext.getXMLLang(), "could not process incoming stanza", receivedStanza);
+        logger.error("in handleNotAuthorized: found errorStanza: " + errorStanza.toString());
+
         writeErrorAndClose(sessionContext, errorStanza);
     }
 
     public void handleWrongFromJID(SessionContext sessionContext, Stanza receivedStanza) {
         XMPPCoreStanza receivedCoreStanza = XMPPCoreStanza.getWrapper(receivedStanza);
+        logger.error("in handleWrongFromJID: stanza: " + (receivedCoreStanza != null ? receivedCoreStanza : "null"));
+
         if (receivedCoreStanza == null) {
             handleNotAuthorized(sessionContext, receivedStanza);
             return;
@@ -108,6 +121,8 @@ public class ResponseWriter {
 
     public void handleParsingException(SessionContext sessionContext, ParsingException e) {
         //TODO write the __right__ error response, not bad-format default only
+        logger.error("in handleParsingException: sessionContext: " + sessionContext.getInitiatingEntity());
+
         if (e.getErrorCondition() != ParsingErrorCondition.BAD_FORMAT)
             throw new RuntimeException("cannot handle this error condition yet");
         Stanza errorStanza = ServerErrorResponses.getStreamError(StreamErrorCondition.BAD_FORMAT,

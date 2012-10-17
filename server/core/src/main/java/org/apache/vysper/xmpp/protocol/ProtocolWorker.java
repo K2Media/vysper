@@ -144,15 +144,18 @@ public class ProtocolWorker implements StanzaProcessor {
                         String tldChunk = chunksArray[chunks - 1];
                         String domainChunk = chunksArray[chunks - 2];
                         subdomainToMatch = domainChunk + "." + tldChunk;
+                        logger.debug("subdomainToMatch: " + subdomainToMatch);
                     }
                 }
                 if(to == null) {
+                    logger.debug("stanza.to appears to be null");
                     // TODO what's the appropriate error? StreamErrorCondition.IMPROPER_ADDRESSING?
                     Stanza errorStanza = ServerErrorResponses.getStanzaError(StanzaErrorCondition.BAD_REQUEST,
                             coreStanza, StanzaErrorType.MODIFY, "Missing to attribute", null, null);
                     ResponseWriter.writeResponse(sessionContext, errorStanza);
                     return;                    
                 } else if(!serverRuntimeContext.getServerEnitity().getDomain().contains(subdomainToMatch)) {
+                    logger.error("serverEntity.domain doesn't contain sundomainToMatch of: " + subdomainToMatch + " serverEntity.domain: " + serverRuntimeContext.getServerEnitity().getDomain());
                     // TODO what's the appropriate error? StreamErrorCondition.IMPROPER_ADDRESSING?
                     Stanza errorStanza = ServerErrorResponses.getStanzaError(StanzaErrorCondition.BAD_REQUEST,
                             coreStanza, StanzaErrorType.MODIFY, "Invalid to attribute", null, null);
@@ -168,6 +171,7 @@ public class ProtocolWorker implements StanzaProcessor {
             // make sure that 'from' (if present) matches the bare authorized entity
             // else respond with a stanza error 'unknown-sender'
             // see rfc3920_draft-saintandre-rfc3920bis-04.txt#8.5.4
+            logger.debug("In protocolWorker but not S2S");
             if (from != null && sessionContext.getInitiatingEntity() != null) {
                 Entity fromBare = from.getBareJID();
                 Entity initiatingEntity = sessionContext.getInitiatingEntity();

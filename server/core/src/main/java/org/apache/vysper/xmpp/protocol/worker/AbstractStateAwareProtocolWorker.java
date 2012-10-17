@@ -28,6 +28,8 @@ import org.apache.vysper.xmpp.protocol.StateAwareProtocolWorker;
 import org.apache.vysper.xmpp.server.SessionContext;
 import org.apache.vysper.xmpp.server.SessionState;
 import org.apache.vysper.xmpp.stanza.Stanza;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * high-level xmpp protocol logic, state-aware.
@@ -37,11 +39,14 @@ import org.apache.vysper.xmpp.stanza.Stanza;
  */
 public abstract class AbstractStateAwareProtocolWorker implements StateAwareProtocolWorker {
 
+    final Logger logger = LoggerFactory.getLogger(AbstractStateAwareProtocolWorker.class);
+
     abstract public SessionState getHandledState();
 
     public void processStanza(SessionContext sessionContext, SessionStateHolder sessionStateHolder, Stanza stanza,
             StanzaHandler stanzaHandler) {
         boolean proceed = checkState(sessionContext, sessionStateHolder, stanza, stanzaHandler);
+        logger.debug("In processStanza: checkState to proceed: " + (proceed ? "true" : "false") + " stanza: " + stanza.toString());
         if (!proceed)
             return; // TODO close stream?
 
@@ -70,9 +75,12 @@ public abstract class AbstractStateAwareProtocolWorker implements StateAwareProt
             SessionStateHolder sessionStateHolder, Stanza stanza, StanzaHandler stanzaHandler) {
         ResponseStanzaContainer responseStanzaContainer = null;
         try {
+            logger.debug("In executeHandler: About to execute handler: " + stanzaHandler.toString() + " for stanza: " + stanza.toString());
             responseStanzaContainer = stanzaHandler.execute(stanza, sessionContext.getServerRuntimeContext(),
                     isProcessingOutboundStanzas(), sessionContext, sessionStateHolder);
+            logger.debug("In executeHandler: response was: " + responseStanzaContainer.toString());
         } catch (ProtocolException e) {
+            logger.error("In executeHandler: Error executing handler for stanza: " + stanza.toString(), e);
             ResponseWriter.handleProtocolError(e, sessionContext, stanza);
             return null;
         }
