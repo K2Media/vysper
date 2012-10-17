@@ -48,7 +48,7 @@ public class StanzaHandlerLookup extends AbstractStanzaHandlerLookup {
 
     protected ServerRuntimeContext serverRuntimeContext;
 
-    private MessageHandler messageHandler = new MessageHandler(serverRuntimeContext);
+    private MessageHandler messageHandler = new MessageHandler();
 
     private PresenceHandler presenceHandler = new PresenceHandler();
 

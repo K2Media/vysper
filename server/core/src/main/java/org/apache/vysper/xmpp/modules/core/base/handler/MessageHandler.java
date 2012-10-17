@@ -28,6 +28,7 @@ import org.apache.vysper.xmpp.addressing.EntityImpl;
 import org.apache.vysper.xmpp.delivery.StanzaRelay;
 import org.apache.vysper.xmpp.delivery.failure.ReturnErrorToSenderFailureStrategy;
 import org.apache.vysper.xmpp.modules.extension.xep0160_offline_storage.OfflineStorageProvider;
+import org.apache.vysper.xmpp.modules.extension.xep0184_message_receipts.MessageDeliveryReceiptsStorageProvider;
 import org.apache.vysper.xmpp.server.ServerRuntimeContext;
 import org.apache.vysper.xmpp.server.SessionContext;
 import org.apache.vysper.xmpp.stanza.MessageStanza;
@@ -37,6 +38,7 @@ import org.apache.vysper.xmpp.stanza.XMPPCoreStanza;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -47,16 +49,6 @@ import java.util.List;
 public class MessageHandler extends XMPPCoreStanzaHandler {
 
     final Logger logger = LoggerFactory.getLogger(MessageHandler.class);
-
-    private ServerRuntimeContext serverRuntimeContext;
-
-    public MessageHandler(ServerRuntimeContext serverRuntimeContext) {
-        this.serverRuntimeContext = serverRuntimeContext;
-    }
-
-    public MessageHandler() {
-
-    }
 
     public String getName() {
         return "message";
@@ -141,14 +133,31 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
                 for (XMLElement preparedElement : stanza.getInnerElements()) {
                     stanzaBuilder.addPreparedElement(preparedElement);
                 }
-                stanza = XMPPCoreStanza.getWrapper(stanzaBuilder.build());
                 // check for message receipt xep-184
                 List<XMLElement> receipts = stanza.getInnerElementsNamed("received", "urn:xmpp:receipts");
                 if (receipts != null && !receipts.isEmpty()) {
                     // see if we have a receipt for a message
                     if (serverRuntimeContext != null) {
-                        OfflineStorageProvider offlineStorageProvider = serverRuntimeContext.getStorageProvider(OfflineStorageProvider.class);
+                        MessageDeliveryReceiptsStorageProvider messageDeliveryReceiptsStorageProvider = (MessageDeliveryReceiptsStorageProvider) serverRuntimeContext.getStorageProvider(MessageDeliveryReceiptsStorageProvider.class);
+                        if (messageDeliveryReceiptsStorageProvider != null) {
+                            List<XMPPCoreStanza> stanzaList = Collections.singletonList(stanza);
+                            messageDeliveryReceiptsStorageProvider.confirmMessageDelivery(from.getBareJID().getFullQualifiedName(), stanzaList);
+                        }
+                        // todo: lookup the original message that was sent to offline/online storage and lookup the time
+                        OfflineStorageProvider offlineStorageProvider = (OfflineStorageProvider) serverRuntimeContext.getStorageProvider(OfflineStorageProvider.class);
+                        if (offlineStorageProvider != null) {
+                            //todo: cast this to an onlineStorageProvider?
+                        }
+
                     }
+                } else {
+                    // this is not a message receipt so we just add serverTime attribute to the original message. This will get persisted into offline/online storage so that we can look up this time and include it as an attribute in message delivery receipt
+                    // add server time for getting a centralized server time
+                    stanzaBuilder.addAttribute("serverTime", String.valueOf(System.currentTimeMillis()));
+                }
+
+                stanza = XMPPCoreStanza.getWrapper(stanzaBuilder.build());
+
             }
 
             StanzaRelay stanzaRelay = serverRuntimeContext.getStanzaRelay();
