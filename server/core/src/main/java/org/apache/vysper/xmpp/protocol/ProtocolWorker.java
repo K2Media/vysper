@@ -127,11 +127,11 @@ public class ProtocolWorker implements StanzaProcessor {
                     return;
                 } else if(!from.getDomain().equals(sessionContext.getInitiatingEntity().getDomain())) {
                     // make sure the from attribute refers to the correct remote server
-                    
-                        Stanza errorStanza = ServerErrorResponses.getStanzaError(StanzaErrorCondition.UNKNOWN_SENDER,
-                                coreStanza, StanzaErrorType.MODIFY, "Incorrect from attribute", null, null);
-                        ResponseWriter.writeResponse(sessionContext, errorStanza); 
-                        return;
+                    logger.debug("from domain does not equal sessionContext.getInitiatingEntity.getDomain() -- Normally this would be an error, but this is OK for clustering");
+//                        Stanza errorStanza = ServerErrorResponses.getStanzaError(StanzaErrorCondition.UNKNOWN_SENDER,
+//                                coreStanza, StanzaErrorType.MODIFY, "Incorrect from attribute", null, null);
+//                        ResponseWriter.writeResponse(sessionContext, errorStanza);
+//                        return;
                 }
                 
                 Entity to = stanza.getTo();
