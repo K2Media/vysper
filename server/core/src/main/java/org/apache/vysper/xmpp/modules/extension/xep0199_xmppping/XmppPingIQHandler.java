@@ -62,11 +62,12 @@ public class XmppPingIQHandler extends DefaultIQHandler {
         
         boolean extension = super.verify(stanza);
         if(extension) {
+            logger.debug("XMPPPing extension is true");
             return true;
         } else {
             // handle result stanzas, which does not contain the extension element
             String type = stanza.getAttributeValue("type");
-            if(type != null && type.equals("result")) {
+            if(type != null && (type.equals("result") || type.equals("get"))) {
                 String id = stanza.getAttributeValue("id");
                 if(id != null && id.startsWith("xmppping-")) {
                     logger.debug("Successful verify for XMPPPing: " + stanza.toString());
