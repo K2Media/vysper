@@ -22,6 +22,7 @@ package org.apache.vysper.xmpp.modules.core.base.handler;
 
 import org.apache.vysper.xml.fragment.Attribute;
 import org.apache.vysper.xml.fragment.XMLElement;
+import org.apache.vysper.xml.fragment.XMLElementBuilder;
 import org.apache.vysper.xml.fragment.XMLSemanticError;
 import org.apache.vysper.xmpp.addressing.Entity;
 import org.apache.vysper.xmpp.addressing.EntityImpl;
@@ -133,9 +134,9 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
                     stanzaBuilder.addAttribute(attribute);
                 }
                 stanzaBuilder.addAttribute("from", from.getFullQualifiedName());
-                for (XMLElement preparedElement : stanza.getInnerElements()) {
-                    stanzaBuilder.addPreparedElement(preparedElement);
-                }
+
+                String serverDeliveryTime = null;
+
                 // check for message receipt xep-184
                 List<XMLElement> receipts = stanza.getInnerElementsNamed("received", "urn:xmpp:receipts");
                 if (receipts != null && !receipts.isEmpty()  && serverRuntimeContext != null) {
@@ -146,7 +147,8 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
                     if (offlineStorageProvider != null && offlineStorageProvider instanceof OnlineStorageProvider) {
                         logger.debug("Found offlineStorageProvider for message delivery receipt");
                         // this is a delivery receipt that is getting sent out, so the from entity is the original recipient of the original message
-                        Attribute originalMessageIdAttribute = receipts.get(0).getAttribute("id");
+                        XMLElement receipt = receipts.get(0);
+                        Attribute originalMessageIdAttribute = receipt.getAttribute("id");
                         String originalMessageId = null;
                         if (originalMessageIdAttribute != null) {
                             originalMessageId = originalMessageIdAttribute.getValue();
@@ -158,7 +160,7 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
                             XMPPCoreStanza originalMessageStanzaWrapper = XMPPCoreStanza.getWrapper(originalMessageStanza);
                             Attribute serverDeliveryTimeAttribute = originalMessageStanza.getAttribute(SERVER_DELIVERY_TIME);
                             if (serverDeliveryTimeAttribute != null) {
-                                String serverDeliveryTime = (serverDeliveryTimeAttribute.getValue());
+                                serverDeliveryTime = (serverDeliveryTimeAttribute.getValue());
                                 logger.debug("Found original Message serverDeliveryTime of: " + serverDeliveryTime);
                                 stanzaBuilder.addAttribute(SERVER_DELIVERY_TIME, serverDeliveryTime);
                             }
@@ -177,9 +179,22 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
                 } else {
                     // this is not a message receipt so we just add serverTime attribute to the original message. This will get persisted into offline/online storage so that we can look up this time and include it as an attribute in message delivery receipt
                     // add server time for getting a centralized server time
-                    String serverDeliveryTime = String.valueOf(System.currentTimeMillis());
+                    serverDeliveryTime = String.valueOf(System.currentTimeMillis());
                     logger.debug("Found a regular message not a messageDeliveryReceipt. Adding serverDeliveryTime of: " + serverDeliveryTime);
                     stanzaBuilder.addAttribute(SERVER_DELIVERY_TIME, serverDeliveryTime);
+                }
+
+                for (XMLElement preparedElement : stanza.getInnerElements()) {
+                    if (preparedElement.getName().equalsIgnoreCase("received")) {
+                        XMLElementBuilder receivedBuilder = new XMLElementBuilder(preparedElement.getName(), preparedElement.getNamespaceURI(), preparedElement.getNamespacePrefix());
+                        if (preparedElement.getAttribute("id") != null)
+                            receivedBuilder.addAttribute("id", preparedElement.getAttribute("id").getValue());
+                        if (serverDeliveryTime != null)
+                            receivedBuilder.addAttribute(SERVER_DELIVERY_TIME, serverDeliveryTime);
+                        stanzaBuilder.addPreparedElement(receivedBuilder.build());
+                    } else {
+                        stanzaBuilder.addPreparedElement(preparedElement);
+                    }
                 }
 
                 stanza = XMPPCoreStanza.getWrapper(stanzaBuilder.build());
