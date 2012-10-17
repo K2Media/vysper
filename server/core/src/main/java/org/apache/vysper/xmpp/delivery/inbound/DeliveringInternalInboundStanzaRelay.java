@@ -230,7 +230,11 @@ public class DeliveringInternalInboundStanzaRelay implements StanzaRelay, Manage
             if (relayResult == null || !relayResult.hasProcessingErrors()) {
                 return relayResult;
             } else {
-                if (offlineStanzaReceiver instanceof OnlineStorageProvider) {
+                if (containsDeliveredToOfflineProviderException(relayResult.getProcessingErrors())) {
+
+                    logger.debug("Not going to persist to OnlineStorageProvider because relayResult.processingErrors contains a DeliveredToOfflineStorageProvider exception");
+
+                } else if (offlineStanzaReceiver instanceof OnlineStorageProvider) {
                     logger.debug("About to persist stanza to OnlineStorageProvider");
                     ((OnlineStorageProvider) offlineStanzaReceiver).storeStanza(stanza, true);
                 } else {
@@ -239,6 +243,15 @@ public class DeliveringInternalInboundStanzaRelay implements StanzaRelay, Manage
             }
 
             return runFailureStrategy(relayResult);
+        }
+
+        protected boolean containsDeliveredToOfflineProviderException(List<DeliveryException> deliveryExceptions) {
+            for (DeliveryException deliveryException : deliveryExceptions) {
+                if (deliveryException instanceof DeliveredToOfflineReceiverException) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private RelayResult runFailureStrategy(RelayResult relayResult) {
