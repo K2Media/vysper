@@ -234,7 +234,7 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
 
             boolean relayMessage = true;
             MessageStanzaRelayFilterService messageStanzaRelayFilterService = (MessageStanzaRelayFilterService) serverRuntimeContext.getServerRuntimeContextService(MessageStanzaRelayFilterService.SERVICE_NAME);
-            if (messageStanzaRelayFilterService != null && originalMessageStanza != null) {
+            if (messageStanzaRelayFilterService != null && (originalMessageStanza != null || !isReceipt)) {
                 relayMessage = messageStanzaRelayFilterService.proceedOutboundRelay(stanza, sessionContext);
             }
 
@@ -249,7 +249,6 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
             } catch (Exception e) {
                 logger.error("Error relaying stanza in MessageHandler: " + stanza.toString(), e);
                 // TODO return error stanza
-                e.printStackTrace(); //To change body of catch statement use File | Settings | File Templates.
             }
         } else if (sessionContext != null) {
             sessionContext.getResponseWriter().write(stanza);
