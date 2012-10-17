@@ -9,4 +9,6 @@ public interface MessageDeliveryReceiptsStorageProvider extends StorageProvider 
 
     public boolean confirmMessageDelivery(String bareJID, List<? extends Stanza> messages);
 
+    public boolean confirmMessageViewed(String bareJID, List<? extends Stanza> messages);
+
 }

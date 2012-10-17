@@ -118,6 +118,8 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
                 return null;
             }
 
+//            serverRuntimeContext.getStorageProvider()
+
             Entity from = stanza.getFrom();
             if (from == null || !from.isResourceSet()) {
                 // rewrite stanza with new from
@@ -138,42 +140,50 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
                 String serverDeliveryTime = null;
 
                 // check for message receipt xep-184
-                List<XMLElement> receipts = stanza.getInnerElementsNamed("received", "urn:xmpp:receipts");
-                if (receipts != null && !receipts.isEmpty()  && serverRuntimeContext != null) {
+                List<XMLElement> receivedReceipts = stanza.getInnerElementsNamed("received", "urn:xmpp:receipts");
+                List<XMLElement> viewedReceipts = stanza.getInnerElementsNamed("viewed", "urn:xmpp:receipts");
+                if (receivedReceipts != null && !receivedReceipts.isEmpty() && serverRuntimeContext != null) {
                     // see if we have a receipt for a message
                     logger.debug("Found a message with a received element -- this is a message delivery receipt: " + stanza.toString());
+                    String originalMessageId = receivedReceipts.get(0).getAttributeValue("id");
                     // todo: lookup the original message that was sent to offline/online storage and lookup the time
-                    OfflineStorageProvider offlineStorageProvider = (OfflineStorageProvider) serverRuntimeContext.getStorageProvider(OfflineStorageProvider.class);
-                    if (offlineStorageProvider != null && offlineStorageProvider instanceof OnlineStorageProvider) {
-                        logger.debug("Found offlineStorageProvider for message delivery receipt");
-                        // this is a delivery receipt that is getting sent out, so the from entity is the original recipient of the original message
-                        XMLElement receipt = receipts.get(0);
-                        Attribute originalMessageIdAttribute = receipt.getAttribute("id");
-                        String originalMessageId = null;
-                        if (originalMessageIdAttribute != null) {
-                            originalMessageId = originalMessageIdAttribute.getValue();
-                            logger.debug("Message delivery receipt is: " + originalMessageId);
+                    Stanza originalMessageStanza = getOriginalMessageFromReceipt(serverRuntimeContext, receivedReceipts, from);
+                    if (originalMessageStanza != null) {
+                        logger.debug("Found original message for messageDelivery receipt with messageId: " + originalMessageId + " stanza: " + originalMessageStanza.toString());
+                        XMPPCoreStanza originalMessageStanzaWrapper = XMPPCoreStanza.getWrapper(originalMessageStanza);
+                        Attribute serverDeliveryTimeAttribute = originalMessageStanza.getAttribute(SERVER_DELIVERY_TIME);
+                        if (serverDeliveryTimeAttribute != null) {
+                            serverDeliveryTime = (serverDeliveryTimeAttribute.getValue()); // serverDeliveryTime gets set on the received element below
+                            logger.debug("Found original Message serverDeliveryTime of: " + serverDeliveryTime);
                         }
-                        Stanza originalMessageStanza = ((OnlineStorageProvider) offlineStorageProvider).getStanzaByMessageId(from.getBareJID().getFullQualifiedName(), originalMessageId);
-                        if (originalMessageStanza != null) {
-                            logger.debug("Found original message for messageDelivery receipt with messageId: " + originalMessageId + " stanza: " + originalMessageStanza.toString());
-                            XMPPCoreStanza originalMessageStanzaWrapper = XMPPCoreStanza.getWrapper(originalMessageStanza);
-                            Attribute serverDeliveryTimeAttribute = originalMessageStanza.getAttribute(SERVER_DELIVERY_TIME);
-                            if (serverDeliveryTimeAttribute != null) {
-                                serverDeliveryTime = (serverDeliveryTimeAttribute.getValue()); // serverDeliveryTime gets set on the received element below
-                                logger.debug("Found original Message serverDeliveryTime of: " + serverDeliveryTime);
-                            }
-                            MessageDeliveryReceiptsStorageProvider messageDeliveryReceiptsStorageProvider = (MessageDeliveryReceiptsStorageProvider) serverRuntimeContext.getStorageProvider(MessageDeliveryReceiptsStorageProvider.class);
-                            if (messageDeliveryReceiptsStorageProvider != null) {
-                                logger.debug("Confirming receipt for message: " + originalMessageId);
-                                List<XMPPCoreStanza> stanzaList = Collections.singletonList(originalMessageStanzaWrapper);
-                                messageDeliveryReceiptsStorageProvider.confirmMessageDelivery(from.getBareJID().getFullQualifiedName(), stanzaList);
-                            } else {
-                                logger.error("Couldn't confirm receipt of message: " + originalMessageId + " because messageDeliveryReceiptsStorageProvider could not be found");
-                            }
+                        MessageDeliveryReceiptsStorageProvider messageDeliveryReceiptsStorageProvider = (MessageDeliveryReceiptsStorageProvider) serverRuntimeContext.getStorageProvider(MessageDeliveryReceiptsStorageProvider.class);
+                        if (messageDeliveryReceiptsStorageProvider != null) {
+                            logger.debug("Confirming delivery receipt for message: " + originalMessageId);
+                            List<XMPPCoreStanza> stanzaList = Collections.singletonList(originalMessageStanzaWrapper);
+                            messageDeliveryReceiptsStorageProvider.confirmMessageDelivery(from.getBareJID().getFullQualifiedName(), stanzaList);
                         } else {
-                            logger.error("Couldn't find original message for messageDelivery receipt with messageID of: " + originalMessageId);
+                            logger.error("Couldn't confirm receipt of message: " + originalMessageId + " because messageDeliveryReceiptsStorageProvider could not be found");
                         }
+                    } else {
+                        logger.error("Couldn't find original message for messageDelivery receipt with messageID of: " + originalMessageId);
+                    }
+                } else if (viewedReceipts != null && !viewedReceipts.isEmpty() && serverRuntimeContext != null) {
+                    logger.debug("Found a message with a viewed element -- this is a message viewed receipt: " + stanza.toString());
+                    String originalMessageId = viewedReceipts.get(0).getAttributeValue("id");
+                    // todo: lookup the original message that was sent to offline/online storage and lookup the time
+                    Stanza originalMessageStanza = getOriginalMessageFromReceipt(serverRuntimeContext, viewedReceipts, from);
+                    if (originalMessageStanza != null) {
+                        logger.debug("Found original message for viewed receipt with messageId: " + originalMessageId + " stanza: " + originalMessageStanza.toString());
+                        MessageDeliveryReceiptsStorageProvider messageDeliveryReceiptsStorageProvider = (MessageDeliveryReceiptsStorageProvider) serverRuntimeContext.getStorageProvider(MessageDeliveryReceiptsStorageProvider.class);
+                        if (messageDeliveryReceiptsStorageProvider != null) {
+                            logger.debug("Confirming viewed receipt for message: " + originalMessageId);
+                            List<XMPPCoreStanza> stanzaList = Collections.singletonList(XMPPCoreStanza.getWrapper(originalMessageStanza));
+                            messageDeliveryReceiptsStorageProvider.confirmMessageViewed(from.getBareJID().getFullQualifiedName(), stanzaList);
+                        } else {
+                            logger.error("Couldn't confirm receipt of message: " + originalMessageId + " because messageDeliveryReceiptsStorageProvider could not be found");
+                        }
+                    } else {
+                        logger.error("Couldn't find original message for viewed receipt with messageID of: " + originalMessageId);
                     }
                 } else {
                     // this is not a message receipt so we just add serverTime attribute to the original message. This will get persisted into offline/online storage so that we can look up this time and include it as an attribute in message delivery receipt
@@ -214,5 +224,23 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
             throw new IllegalStateException("handling offline messages not implemented");
         }
         return null;
+    }
+
+    public Stanza getOriginalMessageFromReceipt(ServerRuntimeContext serverRuntimeContext, List<XMLElement> receipts, Entity originalMessageRecipient) {
+        OfflineStorageProvider offlineStorageProvider = (OfflineStorageProvider) serverRuntimeContext.getStorageProvider(OfflineStorageProvider.class);
+        if (offlineStorageProvider != null && offlineStorageProvider instanceof OnlineStorageProvider) {
+            logger.debug("Found offlineStorageProvider for message delivery receipt");
+            // this is a delivery receipt that is getting sent out, so the from entity is the original recipient of the original message
+            XMLElement receipt = receipts.get(0);
+            String originalMessageId = receipt.getAttributeValue("id");
+
+            logger.debug("Message delivery receipt is: " + originalMessageId);
+
+            Stanza originalMessageStanza = ((OnlineStorageProvider) offlineStorageProvider).getStanzaByMessageId(originalMessageRecipient.getBareJID().getFullQualifiedName(), originalMessageId);
+            return originalMessageStanza;
+        } else {
+            logger.error("Could not find original message stanza because we could not load OnlineStorageProvider for: " + originalMessageRecipient.getFullQualifiedName());
+            return null;
+        }
     }
 }
