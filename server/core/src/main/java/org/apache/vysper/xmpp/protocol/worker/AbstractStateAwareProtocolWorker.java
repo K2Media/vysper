@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class AbstractStateAwareProtocolWorker implements StateAwareProtocolWorker {
 
-    final Logger logger = LoggerFactory.getLogger(AbstractStateAwareProtocolWorker.class);
+    protected Logger logger = LoggerFactory.getLogger(AbstractStateAwareProtocolWorker.class);
 
     abstract public SessionState getHandledState();
 

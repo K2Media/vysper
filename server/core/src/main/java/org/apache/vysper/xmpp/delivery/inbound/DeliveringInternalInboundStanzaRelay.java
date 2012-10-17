@@ -387,6 +387,7 @@ public class DeliveringInternalInboundStanzaRelay implements StanzaRelay, Manage
             List<SessionContext> receivingSessions = resourceRegistry.getHighestPrioSessions(receiver, PRIO_THRESHOLD);
 
             if (receivingSessions.size() == 0 && receiver.isResourceSet() && fallbackToBareJIDAllowed) {
+                logger.debug("found no sessions for relayToBestSessions");
                 // no concrete session for this resource has been found
                 // fall back to bare JID
                 receivingSessions = resourceRegistry.getHighestPrioSessions(receiver.getBareJID(), PRIO_THRESHOLD);
@@ -397,13 +398,16 @@ public class DeliveringInternalInboundStanzaRelay implements StanzaRelay, Manage
             }
 
             RelayResult relayResult = new RelayResult();
+            logger.debug("found " + receivingSessions.size() + " sessions for relayToBestSessions: " + (stanza != null ? stanza.toString() : "null stanza"));
             for (SessionContext receivingSession : receivingSessions) {
                 if (receivingSession.getState() != SessionState.AUTHENTICATED) {
+                    logger.error("Can't relay to session: " + receivingSession + " because state is not authenticated");
                     relayResult.addProcessingError(new DeliveryException("no relay to non-authenticated sessions"));
                     continue;
                 }
                 try {
                     StanzaHandler stanzaHandler = receivingSession.getServerRuntimeContext().getHandler(stanza);
+                    logger.debug("About to relay to stanzaHandler: " + (stanzaHandler != null ? stanzaHandler.toString() : " null"));
                     INBOUND_STANZA_PROTOCOL_WORKER.processStanza(receivingSession, sessionStateHolder, stanza,
                             stanzaHandler);
                 } catch (Exception e) {
@@ -436,7 +440,9 @@ public class DeliveringInternalInboundStanzaRelay implements StanzaRelay, Manage
 
             RelayResult relayResult = new RelayResult();
 
+            logger.debug("Relaying to allSessions with a total number of: " + receivingSessions.size() + " sessions");
             for (SessionContext sessionContext : receivingSessions) {
+                logger.debug("Relating to sessionContext: " + sessionContext.toString());
                 if (sessionContext.getState() != SessionState.AUTHENTICATED) {
                     logger.error("Can't relay to one of the sessions because the sesion is not authenticated");
                     relayResult.addProcessingError(new DeliveryException("no relay to non-authenticated sessions"));

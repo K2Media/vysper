@@ -46,6 +46,7 @@ public class InboundStanzaProtocolWorker extends AbstractStateAwareProtocolWorke
     protected void writeResponse(SessionContext sessionContext, ResponseStanzaContainer responseStanzaContainer) {
         if (responseStanzaContainer != null && responseStanzaContainer.getResponseStanza() != null) {
             Stanza responseStanza = responseStanzaContainer.getResponseStanza();
+            logger.debug("About to writeResponse via InboundStanzaProtocolWorker: " + (responseStanza != null ? responseStanza.toString() : "null"));
 
             sessionContext.getResponseWriter().write(responseStanza);
             return;
