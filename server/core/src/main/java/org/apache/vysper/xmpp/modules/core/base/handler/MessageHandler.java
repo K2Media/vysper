@@ -33,6 +33,8 @@ import org.apache.vysper.xmpp.stanza.MessageStanza;
 import org.apache.vysper.xmpp.stanza.Stanza;
 import org.apache.vysper.xmpp.stanza.StanzaBuilder;
 import org.apache.vysper.xmpp.stanza.XMPPCoreStanza;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * handling message stanzas
@@ -40,6 +42,9 @@ import org.apache.vysper.xmpp.stanza.XMPPCoreStanza;
  * @author The Apache MINA Project (dev@mina.apache.org)
  */
 public class MessageHandler extends XMPPCoreStanzaHandler {
+
+    final Logger logger = LoggerFactory.getLogger(MessageHandler.class);
+
     public String getName() {
         return "message";
     }
@@ -103,6 +108,7 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
                 if (resource == null)
                     throw new IllegalStateException("could not determine unique resource");
                 from = new EntityImpl(sessionContext.getInitiatingEntity(), resource);
+                logger.debug("No from set on stanza: " + stanza.toString() + " using from: " + from.toString());
                 StanzaBuilder stanzaBuilder = new StanzaBuilder(stanza.getName(), stanza.getNamespaceURI());
                 for (Attribute attribute : stanza.getAttributes()) {
                     if ("from".equals(attribute.getName()))
@@ -120,6 +126,7 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
             try {
                 stanzaRelay.relay(stanza.getTo(), stanza, new ReturnErrorToSenderFailureStrategy(stanzaRelay));
             } catch (Exception e) {
+                logger.error("Error relaying stanza in MessageHandler: " + stanza.toString(), e);
                 // TODO return error stanza
                 e.printStackTrace(); //To change body of catch statement use File | Settings | File Templates.
             }

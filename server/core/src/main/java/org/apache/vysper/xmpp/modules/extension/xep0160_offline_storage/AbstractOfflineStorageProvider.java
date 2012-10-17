@@ -59,6 +59,10 @@ public abstract class AbstractOfflineStorageProvider implements OfflineStoragePr
         } else if (stanza instanceof PresenceStanza) {
             PresenceStanza presenceStanza = (PresenceStanza) stanza;
             PresenceStanzaType type = presenceStanza.getPresenceType();
+            if (type == null) {
+                logger.debug("Presence is available -- not necessary to store to offline storage");
+                return;
+            }
             switch (type) {
             case SUBSCRIBE:
             case SUBSCRIBED:

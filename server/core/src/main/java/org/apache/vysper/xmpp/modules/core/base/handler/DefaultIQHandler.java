@@ -58,6 +58,7 @@ public abstract class DefaultIQHandler extends IQHandler {
     protected Stanza executeIQLogic(IQStanza stanza, ServerRuntimeContext serverRuntimeContext, boolean outboundStanza,
             SessionContext sessionContext) {
 
+        logger.debug("handling IQLogic for stanza: " + stanza.toString());
         switch (stanza.getIQType()) {
         case ERROR:
             handleError(stanza, serverRuntimeContext, sessionContext);

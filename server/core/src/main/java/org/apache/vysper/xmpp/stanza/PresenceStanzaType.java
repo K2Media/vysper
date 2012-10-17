@@ -27,7 +27,7 @@ package org.apache.vysper.xmpp.stanza;
 public enum PresenceStanzaType {
 
     UNAVAILABLE("unavailable"), SUBSCRIBE("subscribe"), SUBSCRIBED("subscribed"), UNSUBSCRIBE("unsubscribe"), UNSUBSCRIBED(
-            "unsubscribed"), PROBE("probe"), ERROR("error");
+            "unsubscribed"), PROBE("probe"), ERROR("error"), AVAILABLE("available");
 
     private final String value;
 

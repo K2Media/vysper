@@ -60,7 +60,7 @@ public class XmppPingIQHandler extends DefaultIQHandler {
         logger.debug("In verify for XMPPPing: " + stanza.toString());
         if(stanza == null) return false;
         
-        boolean extension = super.verify(stanza);
+        boolean extension = verifyType(stanza);
         if(extension) {
             logger.debug("XMPPPing extension is true");
             return true;
@@ -96,8 +96,19 @@ public class XmppPingIQHandler extends DefaultIQHandler {
     @Override
     protected Stanza handleGet(IQStanza stanza, ServerRuntimeContext serverRuntimeContext, SessionContext sessionContext) {
         logger.debug("Received IQ Get for XMPPPing: " + stanza.toString());
-        StanzaBuilder stanzaBuilder = StanzaBuilder.createIQStanza(stanza.getTo(), stanza.getFrom(),
-                IQStanzaType.RESULT, stanza.getID());
+        String namespace = null;
+        if (sessionContext.isServerToServer()) {
+            namespace = NamespaceURIs.JABBER_SERVER;
+        } else {
+            namespace = NamespaceURIs.JABBER_CLIENT;
+        }
+        StanzaBuilder stanzaBuilder = new StanzaBuilder("iq", namespace);
+        if (stanza.getFrom() != null)
+            stanzaBuilder.addAttribute("from", stanza.getFrom().getFullQualifiedName());
+        if (stanza.getTo() != null)
+            stanzaBuilder.addAttribute("to", stanza.getTo().getFullQualifiedName());
+        stanzaBuilder.addAttribute("type", IQStanzaType.RESULT.value());
+        stanzaBuilder.addAttribute("id", stanza.getID());
 
         return stanzaBuilder.build();
     }

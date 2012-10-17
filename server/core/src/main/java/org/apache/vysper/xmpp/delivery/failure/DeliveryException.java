@@ -31,21 +31,21 @@ public class DeliveryException extends Exception {
 
     public DeliveryException() {
         super();
-        logger.error("DeliveryException thrown", this);
+        logger.error("DeliveryException thrown");
     }
 
     public DeliveryException(String message) {
         super(message);
-        logger.error("DeliveryException thrown: " + message, this);
+        logger.error("DeliveryException thrown: " + message);
     }
 
     public DeliveryException(String message, Throwable throwable) {
         super(message, throwable);
-        logger.error("DeliveryException thrown: " + message, throwable);
+        logger.error("DeliveryException thrown: " + message);
     }
 
     public DeliveryException(Throwable throwable) {
         super(throwable);
-        logger.error("DeliveryException thrown.", throwable);
+        logger.error("DeliveryException thrown.");
     }
 }
