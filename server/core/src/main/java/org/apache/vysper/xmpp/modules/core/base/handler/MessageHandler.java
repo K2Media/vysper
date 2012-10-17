@@ -235,7 +235,7 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
             boolean relayMessage = true;
             MessageStanzaRelayFilterService messageStanzaRelayFilterService = (MessageStanzaRelayFilterService) serverRuntimeContext.getServerRuntimeContextService(MessageStanzaRelayFilterService.SERVICE_NAME);
             if (messageStanzaRelayFilterService != null && originalMessageStanza != null) {
-                relayMessage = messageStanzaRelayFilterService.proceedOutboundRelay(stanza);
+                relayMessage = messageStanzaRelayFilterService.proceedOutboundRelay(stanza, sessionContext);
             }
 
             logger.debug("Message receipt status: " + isReceipt);

@@ -91,6 +91,8 @@ public class ProtocolWorker implements StanzaProcessor {
 
         StanzaHandler stanzaHandler = serverRuntimeContext.getHandler(stanza);
         if (stanzaHandler == null) {
+            Entity toEntity = stanza.getTo();
+            logger.error("Can't find stanzaHandler for stanza: " + stanza.getName() + " to: " + (toEntity != null ? stanza.getTo().getFullQualifiedName() : "null"));
             responseWriter.handleUnsupportedStanzaType(sessionContext, stanza);
             return;
         }

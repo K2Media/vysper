@@ -49,6 +49,7 @@ public class ResponseWriter {
         Stanza streamOpener = new ServerResponses().getStreamOpenerForError(false, sessionContext.getServerJID(),
                 XMPPVersion.VERSION_1_0, errorStanza);
 
+        logger.debug("writeUnsupportedStanzaError: " + sessionContext.getInitiatingEntity().getFullQualifiedName() + " sessionId: " + sessionContext.getSessionId());
         writeErrorAndClose(sessionContext, streamOpener);
     }
 

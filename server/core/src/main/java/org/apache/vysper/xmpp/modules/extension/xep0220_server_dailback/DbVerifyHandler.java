@@ -34,6 +34,8 @@ import org.apache.vysper.xmpp.server.SessionContext.SessionTerminationCause;
 import org.apache.vysper.xmpp.server.SessionState;
 import org.apache.vysper.xmpp.stanza.Stanza;
 import org.apache.vysper.xmpp.stanza.StanzaBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -41,6 +43,8 @@ import org.apache.vysper.xmpp.stanza.StanzaBuilder;
  */
 public class DbVerifyHandler implements StanzaHandler {
     private DialbackIdGenerator dailbackIdGenerator = new DialbackIdGenerator();
+
+    protected static final Logger logger = LoggerFactory.getLogger(DbVerifyHandler.class);
     
     public String getName() {
         return "verify";
@@ -122,6 +126,7 @@ public class DbVerifyHandler implements StanzaHandler {
 //            }
             
             // close this session as we are now done checking dialback
+            logger.debug("closing this session as we are now done checking dialback");
             sessionContext.endSession(SessionTerminationCause.CLIENT_BYEBYE);
             return null;
         }
