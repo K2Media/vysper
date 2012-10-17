@@ -96,7 +96,8 @@ public class IQHandler extends XMPPCoreStanzaHandler {
         if (iqType == IQStanzaType.GET || iqType == IQStanzaType.SET) {
             // assure, set or get contain one and only one element
             // rfc3920/9.2.3/5.
-            if (!coreStanza.getVerifier().subElementsPresentExact(1)) {
+            logger.debug("Inside GET or SET of IQHandler: stanza: " + stanza.getName());
+            if (!coreStanza.getVerifier().subElementsPresentAtMost(2)) {
                 return ServerErrorResponses.getStanzaError(StanzaErrorCondition.BAD_REQUEST, stanza,
                         StanzaErrorType.MODIFY, "iq stanza of type get or set require exactly one child",
                         getErrorLanguage(serverRuntimeContext, sessionContext), null);

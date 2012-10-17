@@ -57,6 +57,7 @@ public class XmppPingIQHandler extends DefaultIQHandler {
 
     @Override
     public boolean verify(Stanza stanza) {
+        logger.debug("In verify for XMPPPing: " + stanza.toString());
         if(stanza == null) return false;
         
         boolean extension = super.verify(stanza);
@@ -68,6 +69,7 @@ public class XmppPingIQHandler extends DefaultIQHandler {
             if(type != null && type.equals("result")) {
                 String id = stanza.getAttributeValue("id");
                 if(id != null && id.startsWith("xmppping-")) {
+                    logger.debug("Successful verify for XMPPPing: " + stanza.toString());
                     return true;
                 }
             }
@@ -86,12 +88,13 @@ public class XmppPingIQHandler extends DefaultIQHandler {
     
     @Override
     protected boolean verifyInnerElement(Stanza stanza) {
+        logger.debug("In verifyInnerElement for XMPPPing: " + stanza.toString());
         return verifyInnerElementWorker(stanza, "ping") && verifyInnerNamespace(stanza, NamespaceURIs.URN_XMPP_PING);
     }
 
     @Override
     protected Stanza handleGet(IQStanza stanza, ServerRuntimeContext serverRuntimeContext, SessionContext sessionContext) {
-
+        logger.debug("Received IQ Get for XMPPPing: " + stanza.toString());
         StanzaBuilder stanzaBuilder = StanzaBuilder.createIQStanza(stanza.getTo(), stanza.getFrom(),
                 IQStanzaType.RESULT, stanza.getID());
 
@@ -102,6 +105,7 @@ public class XmppPingIQHandler extends DefaultIQHandler {
     protected Stanza handleResult(IQStanza stanza, ServerRuntimeContext serverRuntimeContext,
             SessionContext sessionContext) {
         for(XmppPinger pinger : pingers) {
+            logger.debug("Received IQ Result for XMPPPing: " + stanza.toString());
             pinger.pong(stanza.getID());
         }
         

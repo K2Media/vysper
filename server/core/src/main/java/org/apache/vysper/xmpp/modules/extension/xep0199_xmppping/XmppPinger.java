@@ -28,6 +28,8 @@ import org.apache.vysper.xmpp.protocol.NamespaceURIs;
 import org.apache.vysper.xmpp.stanza.Stanza;
 import org.apache.vysper.xmpp.stanza.StanzaBuilder;
 import org.apache.vysper.xmpp.writer.StanzaWriter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -37,6 +39,7 @@ public class XmppPinger {
 
     private String id = "xmppping-" + UUID.randomUUID().toString();
     private XmppPingIQHandler handler;
+    Logger logger = LoggerFactory.getLogger(XmppPinger.class);
     
     private LinkedBlockingQueue<String> pingQueue = new LinkedBlockingQueue<String>(1);
     
@@ -58,8 +61,11 @@ public class XmppPinger {
         
         try {
             if(pingQueue.poll(timeoutMillis, TimeUnit.MILLISECONDS) != null) {
+                logger.debug("Received pong about to notify the listener: " + from.toString() + " " + to.toString());
                 listener.pong();
+                logger.debug("Received pong and notified the listener");
             } else {
+                logger.debug("Pong timed out: " + from.toString() + " " + to.toString());
                 listener.timeout();
             }
         } catch (InterruptedException e) {

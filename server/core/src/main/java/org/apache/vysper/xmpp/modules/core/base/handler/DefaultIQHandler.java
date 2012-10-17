@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class DefaultIQHandler extends IQHandler {
 
-    final Logger logger = LoggerFactory.getLogger(DefaultIQHandler.class);
+    public final Logger logger = LoggerFactory.getLogger(DefaultIQHandler.class);
 
     @Override
     public boolean verify(Stanza stanza) {
