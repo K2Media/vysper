@@ -164,9 +164,8 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
                 if (originalMessageStanza != null) {
                     logger.debug("Found original message for messageDelivery receipt with messageId: " + originalMessageId + " stanza: " + originalMessageStanza.toString());
                     XMPPCoreStanza originalMessageStanzaWrapper = XMPPCoreStanza.getWrapper(originalMessageStanza);
-                    Attribute serverDeliveryTimeAttribute = originalMessageStanza.getAttribute(SERVER_DELIVERY_TIME);
-                    if (serverDeliveryTimeAttribute != null) {
-                        serverDeliveryTime = (serverDeliveryTimeAttribute.getValue()); // serverDeliveryTime gets set on the received element below
+                    serverDeliveryTime = originalMessageStanza.getAttributeValue(SERVER_DELIVERY_TIME);
+                    if (serverDeliveryTime != null) {
                         logger.debug("Found original Message serverDeliveryTime of: " + serverDeliveryTime);
                     }
                     MessageDeliveryReceiptsStorageProvider messageDeliveryReceiptsStorageProvider = (MessageDeliveryReceiptsStorageProvider) serverRuntimeContext.getStorageProvider(MessageDeliveryReceiptsStorageProvider.class);
