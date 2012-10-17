@@ -141,6 +141,7 @@ public abstract class AbstractSessionContext implements SessionContext {
         if (terminationCause == SessionTerminationCause.CLIENT_BYEBYE
                 || terminationCause == SessionTerminationCause.CONNECTION_ABORT) {
             if(getState().equals(SessionState.AUTHENTICATED)) {
+                logger.debug("About to send an unavailable presence message because we got logged off with termination cause: " + terminationCause);
                 Stanza unavailableStanza = StanzaBuilder.createUnavailablePresenceStanza(null, terminationCause);
                 StanzaHandler handler = serverRuntimeContext.getHandler(unavailableStanza);
                 try {
@@ -155,7 +156,8 @@ public abstract class AbstractSessionContext implements SessionContext {
             // TODO find a solution for informing the contacts without breaking test cases
             // but do nothing for now
         } else {
-            throw new IllegalArgumentException("endSession() not implemented for termination cause = " + terminationCause);
+            logger.debug("end session called for unknown termination cause");
+//            throw new IllegalArgumentException("endSession() not implemented for termination cause = " + terminationCause);
         }
 
         // unbind session and remove from registry
