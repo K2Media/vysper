@@ -75,10 +75,10 @@ public abstract class AbstractStateAwareProtocolWorker implements StateAwareProt
             SessionStateHolder sessionStateHolder, Stanza stanza, StanzaHandler stanzaHandler) {
         ResponseStanzaContainer responseStanzaContainer = null;
         try {
-            logger.debug("In executeHandler: About to execute handler: " + stanzaHandler.toString() + " for stanza: " + stanza.toString());
+            logger.debug("In executeHandler: About to execute handler: " + (stanzaHandler != null ? stanzaHandler.toString() : "null") + " for stanza: " + stanza.toString());
             responseStanzaContainer = stanzaHandler.execute(stanza, sessionContext.getServerRuntimeContext(),
                     isProcessingOutboundStanzas(), sessionContext, sessionStateHolder);
-            logger.debug("In executeHandler: response was: " + responseStanzaContainer.toString());
+            logger.debug("In executeHandler: response was: " + (responseStanzaContainer != null ? responseStanzaContainer.toString() : "null"));
         } catch (ProtocolException e) {
             logger.error("In executeHandler: Error executing handler for stanza: " + stanza.toString(), e);
             ResponseWriter.handleProtocolError(e, sessionContext, stanza);
