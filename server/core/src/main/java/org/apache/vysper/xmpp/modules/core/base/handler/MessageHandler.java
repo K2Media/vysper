@@ -141,34 +141,46 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
                 List<XMLElement> receipts = stanza.getInnerElementsNamed("received", "urn:xmpp:receipts");
                 if (receipts != null && !receipts.isEmpty()  && serverRuntimeContext != null) {
                     // see if we have a receipt for a message
+                    logger.debug("Found a message with a received element -- this is a message delivery receipt: " + stanza.toString());
                     // todo: lookup the original message that was sent to offline/online storage and lookup the time
                     OfflineStorageProvider offlineStorageProvider = (OfflineStorageProvider) serverRuntimeContext.getStorageProvider(OfflineStorageProvider.class);
                     if (offlineStorageProvider != null && offlineStorageProvider instanceof OnlineStorageProvider) {
+                        logger.debug("Found offlineStorageProvider for message delivery receipt");
                         // this is a delivery receipt that is getting sent out, so the from entity is the original recipient of the original message
                         Attribute originalMessageIdAttribute = receipts.get(0).getAttribute("id");
                         String originalMessageId = null;
                         if (originalMessageIdAttribute != null) {
                             originalMessageId = originalMessageIdAttribute.getValue();
+                            logger.debug("Message delivery receipt is: " + originalMessageId);
                         }
                         Stanza originalMessageStanza = ((OnlineStorageProvider) offlineStorageProvider).getStanzaByMessageId(from.getBareJID().getFullQualifiedName(), originalMessageId);
                         if (originalMessageStanza != null) {
+                            logger.debug("Found original message for messageDelivery receipt with messageId: " + originalMessageId + " stanza: " + originalMessageStanza.toString());
                             XMPPCoreStanza originalMessageStanzaWrapper = XMPPCoreStanza.getWrapper(originalMessageStanza);
                             Attribute serverDeliveryTimeAttribute = originalMessageStanza.getAttribute(SERVER_DELIVERY_TIME);
                             if (serverDeliveryTimeAttribute != null) {
                                 String serverDeliveryTime = (serverDeliveryTimeAttribute.getValue());
+                                logger.debug("Found original Message serverDeliveryTime of: " + serverDeliveryTime);
                                 stanzaBuilder.addAttribute(ORIGINAL_SERVER_DELIVERY_TIME, serverDeliveryTime);
                             }
                             MessageDeliveryReceiptsStorageProvider messageDeliveryReceiptsStorageProvider = (MessageDeliveryReceiptsStorageProvider) serverRuntimeContext.getStorageProvider(MessageDeliveryReceiptsStorageProvider.class);
                             if (messageDeliveryReceiptsStorageProvider != null) {
+                                logger.debug("Confirming receipt for message: " + originalMessageId);
                                 List<XMPPCoreStanza> stanzaList = Collections.singletonList(originalMessageStanzaWrapper);
                                 messageDeliveryReceiptsStorageProvider.confirmMessageDelivery(from.getBareJID().getFullQualifiedName(), stanzaList);
+                            } else {
+                                logger.error("Couldn't confirm receipt of message: " + originalMessageId + " because messageDeliveryReceiptsStorageProvider could not be found");
                             }
+                        } else {
+                            logger.error("Couldn't find original message for messageDelivery receipt with messageID of: " + originalMessageId);
                         }
                     }
                 } else {
                     // this is not a message receipt so we just add serverTime attribute to the original message. This will get persisted into offline/online storage so that we can look up this time and include it as an attribute in message delivery receipt
                     // add server time for getting a centralized server time
-                    stanzaBuilder.addAttribute(SERVER_DELIVERY_TIME, String.valueOf(System.currentTimeMillis()));
+                    String serverDeliveryTime = String.valueOf(System.currentTimeMillis());
+                    logger.debug("Found a regular message not a messageDeliveryReceipt. Adding serverDeliveryTime of: " + serverDeliveryTime);
+                    stanzaBuilder.addAttribute(SERVER_DELIVERY_TIME, serverDeliveryTime);
                 }
 
                 stanza = XMPPCoreStanza.getWrapper(stanzaBuilder.build());
