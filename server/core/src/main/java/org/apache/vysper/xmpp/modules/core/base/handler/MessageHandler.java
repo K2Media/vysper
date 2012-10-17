@@ -203,9 +203,17 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
             } else {
                 // this is not a message receipt so we just add serverTime attribute to the original message. This will get persisted into offline/online storage so that we can look up this time and include it as an attribute in message delivery receipt
                 // add server time for getting a centralized server time
-                serverDeliveryTime = String.valueOf(System.currentTimeMillis());
+
                 logger.debug("Found a regular message not a messageDeliveryReceipt. Adding serverDeliveryTime of: " + serverDeliveryTime);
-                stanzaBuilder.addAttribute(SERVER_DELIVERY_TIME, serverDeliveryTime);
+                String existingMessageDeliveryTime = stanza.getAttributeValue(SERVER_DELIVERY_TIME);
+                if (existingMessageDeliveryTime != null) {
+                    logger.debug("Found existing serverDeliveryTime in message, so this could be an archived, offline message being sent to connecting client (in response to a presence): " + existingMessageDeliveryTime);
+                    serverDeliveryTime = existingMessageDeliveryTime;
+                } else {
+                    serverDeliveryTime = String.valueOf(System.currentTimeMillis());
+                    logger.debug("No existing serverDeliveryTime in message so using serverDeliveryTime of: " + serverDeliveryTime);
+                    stanzaBuilder.addAttribute(SERVER_DELIVERY_TIME, serverDeliveryTime);
+                }
             }
 
             for (XMLElement preparedElement : stanza.getInnerElements()) {
