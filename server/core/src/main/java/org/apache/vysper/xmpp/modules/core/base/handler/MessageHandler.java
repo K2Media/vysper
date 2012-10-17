@@ -52,7 +52,6 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
     final Logger logger = LoggerFactory.getLogger(MessageHandler.class);
 
     public static final String SERVER_DELIVERY_TIME = "serverDeliveryTime";
-    public static final String ORIGINAL_SERVER_DELIVERY_TIME = "originalServerDeliveryTime";
 
     public String getName() {
         return "message";
@@ -161,7 +160,7 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
                             if (serverDeliveryTimeAttribute != null) {
                                 String serverDeliveryTime = (serverDeliveryTimeAttribute.getValue());
                                 logger.debug("Found original Message serverDeliveryTime of: " + serverDeliveryTime);
-                                stanzaBuilder.addAttribute(ORIGINAL_SERVER_DELIVERY_TIME, serverDeliveryTime);
+                                stanzaBuilder.addAttribute(SERVER_DELIVERY_TIME, serverDeliveryTime);
                             }
                             MessageDeliveryReceiptsStorageProvider messageDeliveryReceiptsStorageProvider = (MessageDeliveryReceiptsStorageProvider) serverRuntimeContext.getStorageProvider(MessageDeliveryReceiptsStorageProvider.class);
                             if (messageDeliveryReceiptsStorageProvider != null) {
