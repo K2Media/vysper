@@ -49,6 +49,15 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
         return "message";
     }
 
+    public boolean verify(Stanza stanza) {
+        if (stanza == null) return false;
+
+        boolean typeVerified = verifyType(stanza);
+        // we removed namespace because this should work for both s2s and client namespaces to support clustering
+        // boolean namespaceVerified = verifyNamespace(stanza);
+        return typeVerified;
+    }
+
     @Override
     protected boolean verifyType(Stanza stanza) {
         return MessageStanza.isOfType(stanza);
