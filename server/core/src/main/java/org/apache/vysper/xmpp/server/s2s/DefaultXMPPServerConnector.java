@@ -68,26 +68,26 @@ import org.slf4j.LoggerFactory;
  */
 public class DefaultXMPPServerConnector implements XmppPingListener, XMPPServerConnector {
 
-    private static final Logger LOG = LoggerFactory.getLogger(DefaultXMPPServerConnector.class);
+    protected static final Logger LOG = LoggerFactory.getLogger(DefaultXMPPServerConnector.class);
     
-    private ServerRuntimeContext serverRuntimeContext;
-    private MinaBackedSessionContext sessionContext;
-    private Entity otherServer;
-    private SessionStateHolder sessionStateHolder = new SessionStateHolder();
-    private IoConnector connector;
+    protected ServerRuntimeContext serverRuntimeContext;
+    protected MinaBackedSessionContext sessionContext;
+    protected Entity otherServer;
+    protected SessionStateHolder sessionStateHolder = new SessionStateHolder();
+    protected IoConnector connector;
     
-    private int connectTimeout = 30000;
-    private int xmppHandshakeTimeout = 30000;
+    protected int connectTimeout = 30000;
+    protected int xmppHandshakeTimeout = 30000;
 
-    private int pingPeriod = 30000;
-    private int pingTimeout = 10000;
+    protected int pingPeriod = 30000;
+    protected int pingTimeout = 10000;
     
-    private boolean closed = false;
+    protected boolean closed = false;
     
-    private SessionContext dialbackSessionContext;
-    private SessionStateHolder dialbackSessionStateHolder;
+    protected SessionContext dialbackSessionContext;
+    protected SessionStateHolder dialbackSessionStateHolder;
     
-    private Timer pingTimer;
+    protected Timer pingTimer;
     
     public DefaultXMPPServerConnector(Entity otherServer, ServerRuntimeContext serverRuntimeContext, SessionContext dialbackSessionContext, SessionStateHolder dialbackSessionStateHolder) {
         this.serverRuntimeContext = serverRuntimeContext;
@@ -157,7 +157,7 @@ public class DefaultXMPPServerConnector implements XmppPingListener, XMPPServerC
         }
     }
     
-    private NioSocketConnector createConnector(CountDownLatch authenticatedLatch) {
+    protected NioSocketConnector createConnector(CountDownLatch authenticatedLatch) {
         NioSocketConnector connector = new NioSocketConnector();
         DefaultIoFilterChainBuilder filterChainBuilder = new DefaultIoFilterChainBuilder();
         filterChainBuilder.addLast("xmppCodec", new ProtocolCodecFilter(new XMPPProtocolCodecFactory()));
@@ -167,7 +167,7 @@ public class DefaultXMPPServerConnector implements XmppPingListener, XMPPServerC
         return connector;
     }
     
-    private void startPinging() {
+    protected void startPinging() {
         // are pings not already running and is the XMPP ping module active?
         if(pingTimer == null && serverRuntimeContext.getModule(XmppPingModule.class) != null) {
             pingTimer = new Timer("pingtimer", true);
@@ -220,18 +220,18 @@ public class DefaultXMPPServerConnector implements XmppPingListener, XMPPServerC
         return closed;
     }
 
-    private final class ConnectorIoHandler extends IoHandlerAdapter {
+    protected final class ConnectorIoHandler extends IoHandlerAdapter {
         
-        private final List<StanzaHandler> handlers = Arrays.asList(
+        protected final List<StanzaHandler> handlers = Arrays.asList(
             new DbVerifyHandler(),
             new DbResultHandler(),
             new TlsProceedHandler(),
             new FeaturesHandler()
             ); 
         
-        private final CountDownLatch authenticatedLatch;
+        protected final CountDownLatch authenticatedLatch;
 
-        private ConnectorIoHandler(CountDownLatch authenticatedLatch) {
+        protected ConnectorIoHandler(CountDownLatch authenticatedLatch) {
             this.authenticatedLatch = authenticatedLatch;
         }
 
@@ -248,7 +248,7 @@ public class DefaultXMPPServerConnector implements XmppPingListener, XMPPServerC
             }
         }
 
-        private StanzaHandler lookupHandler(Stanza stanza) {
+        protected StanzaHandler lookupHandler(Stanza stanza) {
             for(StanzaHandler handler : handlers) {
                 if(handler.verify(stanza)) {
                     return handler;
@@ -354,7 +354,7 @@ public class DefaultXMPPServerConnector implements XmppPingListener, XMPPServerC
         }
     }
 
-    private class PingTask extends TimerTask {
+    protected class PingTask extends TimerTask {
         public void run() {
             XmppPingModule pingModule = serverRuntimeContext.getModule(XmppPingModule.class);
             pingModule.ping(DefaultXMPPServerConnector.this, serverRuntimeContext.getServerEnitity(), otherServer, pingTimeout, DefaultXMPPServerConnector.this);
