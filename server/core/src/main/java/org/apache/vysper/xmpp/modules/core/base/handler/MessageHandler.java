@@ -149,11 +149,13 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
                 stanzaBuilder.addAttribute("from", from.getFullQualifiedName());
             }
             String serverDeliveryTime = null;
+            boolean isReceipt = false;
 
             // check for message receipt xep-184
             List<XMLElement> receivedReceipts = stanza.getInnerElementsNamed("received", "urn:xmpp:receipts");
             List<XMLElement> viewedReceipts = stanza.getInnerElementsNamed("viewed", "urn:xmpp:receipts");
             if (receivedReceipts != null && !receivedReceipts.isEmpty() && serverRuntimeContext != null) {
+                isReceipt = true;
                 // see if we have a receipt for a message
                 logger.debug("Found a message with a received element -- this is a message delivery receipt: " + stanza.toString());
                 String originalMessageId = receivedReceipts.get(0).getAttributeValue("id");
@@ -181,6 +183,7 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
 
 
             } else if (viewedReceipts != null && !viewedReceipts.isEmpty() && serverRuntimeContext != null) {
+                isReceipt = true;
                 logger.debug("Found a message with a viewed element -- this is a message viewed receipt: " + stanza.toString());
                 String originalMessageId = viewedReceipts.get(0).getAttributeValue("id");
                 // todo: lookup the original message that was sent to offline/online storage and lookup the time
@@ -210,7 +213,7 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
                 if (preparedElement.getName().equalsIgnoreCase("received")) {
                     XMLElementBuilder receivedBuilder = new XMLElementBuilder(preparedElement.getName(), preparedElement.getNamespaceURI(), preparedElement.getNamespacePrefix());
                     if (preparedElement.getAttribute("id") != null)
-                        receivedBuilder.addAttribute("id", preparedElement.getAttribute("id").getValue());
+                        receivedBuilder.addAttribute("id", preparedElement.getAttributeValue("id"));
                     if (serverDeliveryTime != null)
                         receivedBuilder.addAttribute(SERVER_DELIVERY_TIME, serverDeliveryTime);
                     stanzaBuilder.addPreparedElement(receivedBuilder.build());
@@ -230,10 +233,10 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
 
             StanzaRelay stanzaRelay = serverRuntimeContext.getStanzaRelay();
             try {
-                if (relayMessage)
+                if (relayMessage && !isReceipt)
                     stanzaRelay.relay(stanza.getTo(), stanza, new ReturnErrorToSenderFailureStrategy(stanzaRelay));
                 else
-                    logger.debug("Not relaying message because message was filtered: " + stanza.getID());
+                    logger.debug("Not relaying message because message was filtered (probably no valid devices or the message was a receipt): " + stanza.getID() + " isReceipt:" + isReceipt);
             } catch (Exception e) {
                 logger.error("Error relaying stanza in MessageHandler: " + stanza.toString(), e);
                 // TODO return error stanza
