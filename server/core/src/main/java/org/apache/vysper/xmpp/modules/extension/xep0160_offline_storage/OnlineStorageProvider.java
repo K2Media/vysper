@@ -10,4 +10,6 @@ import org.apache.vysper.xmpp.stanza.Stanza;
 public interface OnlineStorageProvider {
 
 	void storeStanza(Stanza stanza, Boolean alreadyViewed);
+
+    Stanza getStanzaByMessageId(String bareJID, String messageId);
 }

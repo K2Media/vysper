@@ -28,6 +28,7 @@ import org.apache.vysper.xmpp.addressing.EntityImpl;
 import org.apache.vysper.xmpp.delivery.StanzaRelay;
 import org.apache.vysper.xmpp.delivery.failure.ReturnErrorToSenderFailureStrategy;
 import org.apache.vysper.xmpp.modules.extension.xep0160_offline_storage.OfflineStorageProvider;
+import org.apache.vysper.xmpp.modules.extension.xep0160_offline_storage.OnlineStorageProvider;
 import org.apache.vysper.xmpp.modules.extension.xep0184_message_receipts.MessageDeliveryReceiptsStorageProvider;
 import org.apache.vysper.xmpp.server.ServerRuntimeContext;
 import org.apache.vysper.xmpp.server.SessionContext;
@@ -49,6 +50,9 @@ import java.util.List;
 public class MessageHandler extends XMPPCoreStanzaHandler {
 
     final Logger logger = LoggerFactory.getLogger(MessageHandler.class);
+
+    public static final String SERVER_DELIVERY_TIME = "serverDeliveryTime";
+    public static final String ORIGINAL_SERVER_DELIVERY_TIME = "originalServerDeliveryTime";
 
     public String getName() {
         return "message";
@@ -135,25 +139,36 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
                 }
                 // check for message receipt xep-184
                 List<XMLElement> receipts = stanza.getInnerElementsNamed("received", "urn:xmpp:receipts");
-                if (receipts != null && !receipts.isEmpty()) {
+                if (receipts != null && !receipts.isEmpty()  && serverRuntimeContext != null) {
                     // see if we have a receipt for a message
-                    if (serverRuntimeContext != null) {
-                        MessageDeliveryReceiptsStorageProvider messageDeliveryReceiptsStorageProvider = (MessageDeliveryReceiptsStorageProvider) serverRuntimeContext.getStorageProvider(MessageDeliveryReceiptsStorageProvider.class);
-                        if (messageDeliveryReceiptsStorageProvider != null) {
-                            List<XMPPCoreStanza> stanzaList = Collections.singletonList(stanza);
-                            messageDeliveryReceiptsStorageProvider.confirmMessageDelivery(from.getBareJID().getFullQualifiedName(), stanzaList);
+                    // todo: lookup the original message that was sent to offline/online storage and lookup the time
+                    OfflineStorageProvider offlineStorageProvider = (OfflineStorageProvider) serverRuntimeContext.getStorageProvider(OfflineStorageProvider.class);
+                    if (offlineStorageProvider != null && offlineStorageProvider instanceof OnlineStorageProvider) {
+                        // this is a delivery receipt that is getting sent out, so the from entity is the original recipient of the original message
+                        Attribute originalMessageIdAttribute = receipts.get(0).getAttribute("id");
+                        String originalMessageId = null;
+                        if (originalMessageIdAttribute != null) {
+                            originalMessageId = originalMessageIdAttribute.getValue();
                         }
-                        // todo: lookup the original message that was sent to offline/online storage and lookup the time
-                        OfflineStorageProvider offlineStorageProvider = (OfflineStorageProvider) serverRuntimeContext.getStorageProvider(OfflineStorageProvider.class);
-                        if (offlineStorageProvider != null) {
-                            //todo: cast this to an onlineStorageProvider?
+                        Stanza originalMessageStanza = ((OnlineStorageProvider) offlineStorageProvider).getStanzaByMessageId(from.getBareJID().getFullQualifiedName(), originalMessageId);
+                        if (originalMessageStanza != null) {
+                            XMPPCoreStanza originalMessageStanzaWrapper = XMPPCoreStanza.getWrapper(originalMessageStanza);
+                            Attribute serverDeliveryTimeAttribute = originalMessageStanza.getAttribute(SERVER_DELIVERY_TIME);
+                            if (serverDeliveryTimeAttribute != null) {
+                                String serverDeliveryTime = (serverDeliveryTimeAttribute.getValue());
+                                stanzaBuilder.addAttribute(ORIGINAL_SERVER_DELIVERY_TIME, serverDeliveryTime);
+                            }
+                            MessageDeliveryReceiptsStorageProvider messageDeliveryReceiptsStorageProvider = (MessageDeliveryReceiptsStorageProvider) serverRuntimeContext.getStorageProvider(MessageDeliveryReceiptsStorageProvider.class);
+                            if (messageDeliveryReceiptsStorageProvider != null) {
+                                List<XMPPCoreStanza> stanzaList = Collections.singletonList(originalMessageStanzaWrapper);
+                                messageDeliveryReceiptsStorageProvider.confirmMessageDelivery(from.getBareJID().getFullQualifiedName(), stanzaList);
+                            }
                         }
-
                     }
                 } else {
                     // this is not a message receipt so we just add serverTime attribute to the original message. This will get persisted into offline/online storage so that we can look up this time and include it as an attribute in message delivery receipt
                     // add server time for getting a centralized server time
-                    stanzaBuilder.addAttribute("serverTime", String.valueOf(System.currentTimeMillis()));
+                    stanzaBuilder.addAttribute(SERVER_DELIVERY_TIME, String.valueOf(System.currentTimeMillis()));
                 }
 
                 stanza = XMPPCoreStanza.getWrapper(stanzaBuilder.build());
