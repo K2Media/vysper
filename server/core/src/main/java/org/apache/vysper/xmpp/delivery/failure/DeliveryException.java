@@ -19,25 +19,33 @@
  */
 package org.apache.vysper.xmpp.delivery.failure;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  *
  * @author The Apache MINA Project (dev@mina.apache.org)
  */
 public class DeliveryException extends Exception {
+    final Logger logger = LoggerFactory.getLogger(DeliveryException.class);
 
     public DeliveryException() {
         super();
+        logger.error("DeliveryException thrown", this);
     }
 
-    public DeliveryException(String string) {
-        super(string);
+    public DeliveryException(String message) {
+        super(message);
+        logger.error("DeliveryException thrown: " + message, this);
     }
 
-    public DeliveryException(String string, Throwable throwable) {
-        super(string, throwable);
+    public DeliveryException(String message, Throwable throwable) {
+        super(message, throwable);
+        logger.error("DeliveryException thrown: " + message, throwable);
     }
 
     public DeliveryException(Throwable throwable) {
         super(throwable);
+        logger.error("DeliveryException thrown.", throwable);
     }
 }

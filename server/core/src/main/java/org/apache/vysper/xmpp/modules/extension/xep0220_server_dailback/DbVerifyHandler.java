@@ -27,6 +27,7 @@ import org.apache.vysper.xmpp.protocol.ResponseStanzaContainer;
 import org.apache.vysper.xmpp.protocol.ResponseStanzaContainerImpl;
 import org.apache.vysper.xmpp.protocol.SessionStateHolder;
 import org.apache.vysper.xmpp.protocol.StanzaHandler;
+import org.apache.vysper.xmpp.server.IClusterableServerRuntimeContext;
 import org.apache.vysper.xmpp.server.ServerRuntimeContext;
 import org.apache.vysper.xmpp.server.SessionContext;
 import org.apache.vysper.xmpp.server.SessionContext.SessionTerminationCause;
@@ -66,7 +67,13 @@ public class DbVerifyHandler implements StanzaHandler {
         String type = stanza.getAttributeValue("type");
         String id = stanza.getAttributeValue("id");
         Entity receiving = EntityImpl.parseUnchecked(stanza.getAttributeValue("from"));
-        Entity originating = serverRuntimeContext.getServerEnitity();
+        Entity originating = null;
+
+        if (serverRuntimeContext instanceof IClusterableServerRuntimeContext )
+            originating = ((IClusterableServerRuntimeContext) serverRuntimeContext).getLocalClusterDomainEntity();
+        else
+            originating = serverRuntimeContext.getServerEnitity();
+
         if(type == null) {
             // acting as a Authoritative server
             // getting asked for verification from the Receiving server

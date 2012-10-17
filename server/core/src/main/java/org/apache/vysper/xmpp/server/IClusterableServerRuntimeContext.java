@@ -17,27 +17,35 @@
  *  under the License.
  *
  */
-package org.apache.vysper.xmpp.delivery.failure;
+
+package org.apache.vysper.xmpp.server;
 
 import java.util.List;
 
+import javax.net.ssl.SSLContext;
+
+import org.apache.vysper.storage.StorageProvider;
+import org.apache.vysper.xmpp.addressing.Entity;
+import org.apache.vysper.xmpp.authentication.UserAuthentication;
+import org.apache.vysper.xmpp.delivery.StanzaRelay;
+import org.apache.vysper.xmpp.modules.Module;
+import org.apache.vysper.xmpp.modules.ServerRuntimeContextService;
+import org.apache.vysper.xmpp.protocol.StanzaHandler;
+import org.apache.vysper.xmpp.protocol.StanzaProcessor;
+import org.apache.vysper.xmpp.server.components.Component;
+import org.apache.vysper.xmpp.server.s2s.XMPPServerConnectorRegistry;
 import org.apache.vysper.xmpp.stanza.Stanza;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.vysper.xmpp.state.presence.LatestPresenceCache;
+import org.apache.vysper.xmpp.state.resourcebinding.ResourceRegistry;
 
 /**
+ * provides each session with server-global data
  *
  * @author The Apache MINA Project (dev@mina.apache.org)
  */
-public class IgnoreFailureStrategy implements DeliveryFailureStrategy {
-
-    public final static IgnoreFailureStrategy IGNORE_FAILURE_STRATEGY = new IgnoreFailureStrategy();
-
-    final Logger logger = LoggerFactory.getLogger(IgnoreFailureStrategy.class);
-
-    public void process(Stanza failedToDeliverStanza, List<DeliveryException> deliveryException)
-            throws DeliveryException {
-        logger.debug("Running ignoreFailureStrategy for stanza: " + failedToDeliverStanza.toString());
-        // do nothing
-    }
+public interface IClusterableServerRuntimeContext extends ServerRuntimeContext {
+	
+	public Entity getLocalClusterDomainEntity();
+	
+	
 }
