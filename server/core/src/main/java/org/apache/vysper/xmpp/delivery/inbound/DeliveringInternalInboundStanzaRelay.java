@@ -44,7 +44,7 @@ import org.apache.vysper.xmpp.delivery.failure.DeliveryFailureStrategy;
 import org.apache.vysper.xmpp.delivery.failure.LocalRecipientOfflineException;
 import org.apache.vysper.xmpp.delivery.failure.NoSuchLocalUserException;
 import org.apache.vysper.xmpp.delivery.failure.ServiceNotAvailableException;
-import org.apache.vysper.xmpp.modules.extension.xep0160_offline_storage.OfflineStorageProvider;
+import org.apache.vysper.xmpp.modules.extension.xep0160_offline_storage.*;
 import org.apache.vysper.xmpp.protocol.SessionStateHolder;
 import org.apache.vysper.xmpp.protocol.StanzaHandler;
 import org.apache.vysper.xmpp.protocol.StanzaProcessor;
@@ -124,8 +124,8 @@ public class DeliveringInternalInboundStanzaRelay implements StanzaRelay, Manage
         this.resourceRegistry = resourceRegistry;
         this.accountVerification = accountVerification;
         this.offlineStanzaReceiver =offlineStanzaReceiver;
-        int coreThreadCount = 10;
-        int maxThreadCount = 20;
+        int coreThreadCount = 18;
+        int maxThreadCount = 36;
         int threadTimeoutSeconds = 2 * 60;
         this.executor = new ThreadPoolExecutor(coreThreadCount, maxThreadCount, threadTimeoutSeconds, TimeUnit.SECONDS,
                 new LinkedBlockingQueue<Runnable>(), new RejectedDeliveryHandler(this, logger));
@@ -227,8 +227,17 @@ public class DeliveringInternalInboundStanzaRelay implements StanzaRelay, Manage
 
         public RelayResult call() {
             RelayResult relayResult = deliver();
-            if (relayResult == null || !relayResult.hasProcessingErrors())
+            if (relayResult == null || !relayResult.hasProcessingErrors()) {
                 return relayResult;
+            } else {
+                if (offlineStanzaReceiver instanceof OnlineStorageProvider) {
+                    logger.debug("About to persist stanza to OnlineStorageProvider");
+                    ((OnlineStorageProvider) offlineStanzaReceiver).storeStanza(stanza, true);
+                } else {
+                    logger.debug("Not persisting to OnlineStorageProvider because offlineStorageProvider is not castable to OnlineStorageProvider");
+                }
+            }
+
             return runFailureStrategy(relayResult);
         }
 
@@ -254,6 +263,7 @@ public class DeliveringInternalInboundStanzaRelay implements StanzaRelay, Manage
             try {
                 String receiverDomain = receiver.getDomain();
                 if (receiverDomain != null && !EntityUtils.isAddressingServer(receiver, serverEntity)) {
+                    logger.debug("attempting to deliver stanza via inbound relay but receiverDomain seems to be addressing a component: " + receiver + " serverEntity: " + serverEntity);
                     if (serverRuntimeContext == null) {
                         return new RelayResult(new ServiceNotAvailableException(
                                 "cannot retrieve component from server context"));
@@ -290,6 +300,8 @@ public class DeliveringInternalInboundStanzaRelay implements StanzaRelay, Manage
                 return new RelayResult(new DeliveryException(
                         "unable to deliver stanza which is not IQ, presence or message"));
 
+            logger.debug("Attempting to deliver via internal relay to bareJID: " + xmppStanza.toString());
+
             if (PresenceStanza.isOfType(stanza)) {
                 return relayToAllSessions();
             } else if (MessageStanza.isOfType(stanza)) {
@@ -316,7 +328,7 @@ public class DeliveringInternalInboundStanzaRelay implements StanzaRelay, Manage
                 }
             } else if (IQStanza.isOfType(stanza)) {
                 // TODO handle on behalf of the user/client
-                return relayToBestSessions(false);
+                return relayToBestSessions(true);
             }
 
             return relayNotPossible();
@@ -327,6 +339,8 @@ public class DeliveringInternalInboundStanzaRelay implements StanzaRelay, Manage
             XMPPCoreStanza xmppStanza = XMPPCoreStanza.getWrapper(stanza);
             if (xmppStanza == null)
                 new RelayResult(new DeliveryException("unable to deliver stanza which is not IQ, presence or message"));
+
+            logger.debug("Attempting to deliver via internal relay to fullJID: " + xmppStanza.toString());
 
             // all special cases are handled by the inbound handlers!
             if (PresenceStanza.isOfType(stanza)) {
@@ -346,7 +360,7 @@ public class DeliveringInternalInboundStanzaRelay implements StanzaRelay, Manage
 
             } else if (IQStanza.isOfType(stanza)) {
                 // TODO no resource matches: service n/a
-                return relayToBestSessions(false);
+                return relayToBestSessions(true);
             }
 
             // for any other type of stanza 
@@ -359,6 +373,7 @@ public class DeliveringInternalInboundStanzaRelay implements StanzaRelay, Manage
                         .toString());
                 return new RelayResult(new NoSuchLocalUserException());
             } else if (offlineStanzaReceiver != null) {
+                logger.debug("About to send stanza to offlineReceiver to be persisted (since user appears to be offline)");
                 offlineStanzaReceiver.receive(stanza);
                 return new RelayResult(new DeliveredToOfflineReceiverException());
             } else {
@@ -392,6 +407,8 @@ public class DeliveringInternalInboundStanzaRelay implements StanzaRelay, Manage
                     INBOUND_STANZA_PROTOCOL_WORKER.processStanza(receivingSession, sessionStateHolder, stanza,
                             stanzaHandler);
                 } catch (Exception e) {
+                    if (stanza != null)
+                        logger.error("Error relaying stanza via protocol worker in inbound relay: " + stanza.toString());
                     relayResult.addProcessingError(new DeliveryException("no relay to non-authenticated sessions"));
                     continue;
                 }
@@ -421,6 +438,7 @@ public class DeliveringInternalInboundStanzaRelay implements StanzaRelay, Manage
 
             for (SessionContext sessionContext : receivingSessions) {
                 if (sessionContext.getState() != SessionState.AUTHENTICATED) {
+                    logger.error("Can't relay to one of the sessions because the sesion is not authenticated");
                     relayResult.addProcessingError(new DeliveryException("no relay to non-authenticated sessions"));
                     continue;
                 }
@@ -429,6 +447,8 @@ public class DeliveringInternalInboundStanzaRelay implements StanzaRelay, Manage
                     INBOUND_STANZA_PROTOCOL_WORKER.processStanza(sessionContext, sessionStateHolder, stanza,
                             stanzaHandler);
                 } catch (Exception e) {
+                    if (stanza != null)
+                        logger.error("Error relaying stanza via protocol worker in inbound relay: " + stanza.toString());
                     relayResult.addProcessingError(new DeliveryException(e));
                 }
             }
