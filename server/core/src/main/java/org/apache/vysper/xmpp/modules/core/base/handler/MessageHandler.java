@@ -28,7 +28,7 @@ import org.apache.vysper.xmpp.addressing.Entity;
 import org.apache.vysper.xmpp.addressing.EntityImpl;
 import org.apache.vysper.xmpp.delivery.StanzaRelay;
 import org.apache.vysper.xmpp.delivery.failure.ReturnErrorToSenderFailureStrategy;
-import org.apache.vysper.xmpp.modules.extension.mobile_device_metadata.MobileDeviceMetadataStorageProvider;
+import org.apache.vysper.xmpp.modules.extension.mobile_device_metadata.MessageStanzaRelayFilterService;
 import org.apache.vysper.xmpp.modules.extension.xep0160_offline_storage.OfflineStorageProvider;
 import org.apache.vysper.xmpp.modules.extension.xep0160_offline_storage.OnlineStorageProvider;
 import org.apache.vysper.xmpp.modules.extension.xep0184_message_receipts.MessageDeliveryReceiptsStorageProvider;
@@ -124,6 +124,7 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
             StanzaBuilder stanzaBuilder = new StanzaBuilder(stanza.getName(), stanza.getNamespaceURI());
 
             Entity from = stanza.getFrom();
+            Stanza originalMessageStanza = null;
             if (from == null || !from.isResourceSet()) {
                 // rewrite stanza with new from
                 String resource = serverRuntimeContext.getResourceRegistry()
@@ -157,7 +158,7 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
                 logger.debug("Found a message with a received element -- this is a message delivery receipt: " + stanza.toString());
                 String originalMessageId = receivedReceipts.get(0).getAttributeValue("id");
                 // todo: lookup the original message that was sent to offline/online storage and lookup the time
-                Stanza originalMessageStanza = getOriginalMessageFromReceipt(serverRuntimeContext, receivedReceipts, from);
+                originalMessageStanza = getOriginalMessageFromReceipt(serverRuntimeContext, receivedReceipts, from);
                 if (originalMessageStanza != null) {
                     logger.debug("Found original message for messageDelivery receipt with messageId: " + originalMessageId + " stanza: " + originalMessageStanza.toString());
                     XMPPCoreStanza originalMessageStanzaWrapper = XMPPCoreStanza.getWrapper(originalMessageStanza);
@@ -183,7 +184,7 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
                 logger.debug("Found a message with a viewed element -- this is a message viewed receipt: " + stanza.toString());
                 String originalMessageId = viewedReceipts.get(0).getAttributeValue("id");
                 // todo: lookup the original message that was sent to offline/online storage and lookup the time
-                Stanza originalMessageStanza = getOriginalMessageFromReceipt(serverRuntimeContext, viewedReceipts, from);
+                originalMessageStanza = getOriginalMessageFromReceipt(serverRuntimeContext, viewedReceipts, from);
                 if (originalMessageStanza != null) {
                     logger.debug("Found original message for viewed receipt with messageId: " + originalMessageId + " stanza: " + originalMessageStanza.toString());
                     MessageDeliveryReceiptsStorageProvider messageDeliveryReceiptsStorageProvider = (MessageDeliveryReceiptsStorageProvider) serverRuntimeContext.getStorageProvider(MessageDeliveryReceiptsStorageProvider.class);
@@ -221,22 +222,18 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
             stanza = XMPPCoreStanza.getWrapper(stanzaBuilder.build());
 
 
-            boolean allowStanzaToBeRelayed = true;
-            MobileDeviceMetadataStorageProvider mobileDeviceMetadataStorageProvider = (MobileDeviceMetadataStorageProvider) serverRuntimeContext.getStorageProvider(MobileDeviceMetadataStorageProvider.class);
-            if (mobileDeviceMetadataStorageProvider != null) {
-                List<Integer> buildVersions = mobileDeviceMetadataStorageProvider.getBuildVersionsForUser(from.getFullQualifiedName());
-                Integer maxBuildVersionForUser = Collections.max(buildVersions);
-                if (maxBuildVersionForUser < MINIMUM_XMPP_BUILD_VERSION) {
-                    logger.debug("Could not find a build version that was recent enough to allow a message to be sent: " + maxBuildVersionForUser + " for user: " + from.getFullQualifiedName());
-                    allowStanzaToBeRelayed = false;
-                }
+            boolean relayMessage = true;
+            MessageStanzaRelayFilterService messageStanzaRelayFilterService = (MessageStanzaRelayFilterService) serverRuntimeContext.getServerRuntimeContextService(MessageStanzaRelayFilterService.SERVICE_NAME);
+            if (messageStanzaRelayFilterService != null && originalMessageStanza != null) {
+                relayMessage = messageStanzaRelayFilterService.proceedOutboundRelay(stanza);
             }
-
 
             StanzaRelay stanzaRelay = serverRuntimeContext.getStanzaRelay();
             try {
-                if (allowStanzaToBeRelayed)
+                if (relayMessage)
                     stanzaRelay.relay(stanza.getTo(), stanza, new ReturnErrorToSenderFailureStrategy(stanzaRelay));
+                else
+                    logger.debug("Not relaying message because message was filtered: " + stanza.getID());
             } catch (Exception e) {
                 logger.error("Error relaying stanza in MessageHandler: " + stanza.toString(), e);
                 // TODO return error stanza
