@@ -136,6 +136,7 @@ public class ProtocolWorker implements StanzaProcessor {
 
                 String subdomainToMatch = "";
                 Entity to = stanza.getTo();
+                logger.debug("protocolworker S2S. About to validate to.domain: " + to.getDomain());
                 if (to != null && to.getDomain() != null) {
                     String[] chunksArray = to.getDomain().split(".");
                     int chunks = chunksArray.length;
