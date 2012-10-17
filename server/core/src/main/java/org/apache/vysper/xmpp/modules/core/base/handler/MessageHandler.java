@@ -28,6 +28,7 @@ import org.apache.vysper.xmpp.addressing.Entity;
 import org.apache.vysper.xmpp.addressing.EntityImpl;
 import org.apache.vysper.xmpp.delivery.StanzaRelay;
 import org.apache.vysper.xmpp.delivery.failure.ReturnErrorToSenderFailureStrategy;
+import org.apache.vysper.xmpp.modules.extension.mobile_device_metadata.MobileDeviceMetadataStorageProvider;
 import org.apache.vysper.xmpp.modules.extension.xep0160_offline_storage.OfflineStorageProvider;
 import org.apache.vysper.xmpp.modules.extension.xep0160_offline_storage.OnlineStorageProvider;
 import org.apache.vysper.xmpp.modules.extension.xep0184_message_receipts.MessageDeliveryReceiptsStorageProvider;
@@ -53,6 +54,8 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
     final Logger logger = LoggerFactory.getLogger(MessageHandler.class);
 
     public static final String SERVER_DELIVERY_TIME = "serverDeliveryTime";
+
+    public static final int MINIMUM_XMPP_BUILD_VERSION = 23;
 
     public String getName() {
         return "message";
@@ -118,7 +121,7 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
                 return null;
             }
 
-//            serverRuntimeContext.getStorageProvider()
+            StanzaBuilder stanzaBuilder = new StanzaBuilder(stanza.getName(), stanza.getNamespaceURI());
 
             Entity from = stanza.getFrom();
             if (from == null || !from.isResourceSet()) {
@@ -129,7 +132,6 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
                     throw new IllegalStateException("could not determine unique resource");
                 from = new EntityImpl(sessionContext.getInitiatingEntity(), resource);
                 logger.debug("No from set on stanza: " + stanza.toString() + " using from: " + from.toString());
-                StanzaBuilder stanzaBuilder = new StanzaBuilder(stanza.getName(), stanza.getNamespaceURI());
                 for (Attribute attribute : stanza.getAttributes()) {
                     if ("from".equals(attribute.getName()))
                         continue;
@@ -137,82 +139,104 @@ public class MessageHandler extends XMPPCoreStanzaHandler {
                 }
                 stanzaBuilder.addAttribute("from", from.getFullQualifiedName());
 
-                String serverDeliveryTime = null;
+            } else {
+                for (Attribute attribute : stanza.getAttributes()) {
+                    if ("from".equals(attribute.getName()))
+                        continue;
+                    stanzaBuilder.addAttribute(attribute);
+                }
+                stanzaBuilder.addAttribute("from", from.getFullQualifiedName());
+            }
+            String serverDeliveryTime = null;
 
-                // check for message receipt xep-184
-                List<XMLElement> receivedReceipts = stanza.getInnerElementsNamed("received", "urn:xmpp:receipts");
-                List<XMLElement> viewedReceipts = stanza.getInnerElementsNamed("viewed", "urn:xmpp:receipts");
-                if (receivedReceipts != null && !receivedReceipts.isEmpty() && serverRuntimeContext != null) {
-                    // see if we have a receipt for a message
-                    logger.debug("Found a message with a received element -- this is a message delivery receipt: " + stanza.toString());
-                    String originalMessageId = receivedReceipts.get(0).getAttributeValue("id");
-                    // todo: lookup the original message that was sent to offline/online storage and lookup the time
-                    Stanza originalMessageStanza = getOriginalMessageFromReceipt(serverRuntimeContext, receivedReceipts, from);
-                    if (originalMessageStanza != null) {
-                        logger.debug("Found original message for messageDelivery receipt with messageId: " + originalMessageId + " stanza: " + originalMessageStanza.toString());
-                        XMPPCoreStanza originalMessageStanzaWrapper = XMPPCoreStanza.getWrapper(originalMessageStanza);
-                        Attribute serverDeliveryTimeAttribute = originalMessageStanza.getAttribute(SERVER_DELIVERY_TIME);
-                        if (serverDeliveryTimeAttribute != null) {
-                            serverDeliveryTime = (serverDeliveryTimeAttribute.getValue()); // serverDeliveryTime gets set on the received element below
-                            logger.debug("Found original Message serverDeliveryTime of: " + serverDeliveryTime);
-                        }
-                        MessageDeliveryReceiptsStorageProvider messageDeliveryReceiptsStorageProvider = (MessageDeliveryReceiptsStorageProvider) serverRuntimeContext.getStorageProvider(MessageDeliveryReceiptsStorageProvider.class);
-                        if (messageDeliveryReceiptsStorageProvider != null) {
-                            logger.debug("Confirming delivery receipt for message: " + originalMessageId);
-                            List<XMPPCoreStanza> stanzaList = Collections.singletonList(originalMessageStanzaWrapper);
-                            messageDeliveryReceiptsStorageProvider.confirmMessageDelivery(from.getBareJID().getFullQualifiedName(), stanzaList);
-                        } else {
-                            logger.error("Couldn't confirm receipt of message: " + originalMessageId + " because messageDeliveryReceiptsStorageProvider could not be found");
-                        }
-                    } else {
-                        logger.error("Couldn't find original message for messageDelivery receipt with messageID of: " + originalMessageId);
+            // check for message receipt xep-184
+            List<XMLElement> receivedReceipts = stanza.getInnerElementsNamed("received", "urn:xmpp:receipts");
+            List<XMLElement> viewedReceipts = stanza.getInnerElementsNamed("viewed", "urn:xmpp:receipts");
+            if (receivedReceipts != null && !receivedReceipts.isEmpty() && serverRuntimeContext != null) {
+                // see if we have a receipt for a message
+                logger.debug("Found a message with a received element -- this is a message delivery receipt: " + stanza.toString());
+                String originalMessageId = receivedReceipts.get(0).getAttributeValue("id");
+                // todo: lookup the original message that was sent to offline/online storage and lookup the time
+                Stanza originalMessageStanza = getOriginalMessageFromReceipt(serverRuntimeContext, receivedReceipts, from);
+                if (originalMessageStanza != null) {
+                    logger.debug("Found original message for messageDelivery receipt with messageId: " + originalMessageId + " stanza: " + originalMessageStanza.toString());
+                    XMPPCoreStanza originalMessageStanzaWrapper = XMPPCoreStanza.getWrapper(originalMessageStanza);
+                    Attribute serverDeliveryTimeAttribute = originalMessageStanza.getAttribute(SERVER_DELIVERY_TIME);
+                    if (serverDeliveryTimeAttribute != null) {
+                        serverDeliveryTime = (serverDeliveryTimeAttribute.getValue()); // serverDeliveryTime gets set on the received element below
+                        logger.debug("Found original Message serverDeliveryTime of: " + serverDeliveryTime);
                     }
-                } else if (viewedReceipts != null && !viewedReceipts.isEmpty() && serverRuntimeContext != null) {
-                    logger.debug("Found a message with a viewed element -- this is a message viewed receipt: " + stanza.toString());
-                    String originalMessageId = viewedReceipts.get(0).getAttributeValue("id");
-                    // todo: lookup the original message that was sent to offline/online storage and lookup the time
-                    Stanza originalMessageStanza = getOriginalMessageFromReceipt(serverRuntimeContext, viewedReceipts, from);
-                    if (originalMessageStanza != null) {
-                        logger.debug("Found original message for viewed receipt with messageId: " + originalMessageId + " stanza: " + originalMessageStanza.toString());
-                        MessageDeliveryReceiptsStorageProvider messageDeliveryReceiptsStorageProvider = (MessageDeliveryReceiptsStorageProvider) serverRuntimeContext.getStorageProvider(MessageDeliveryReceiptsStorageProvider.class);
-                        if (messageDeliveryReceiptsStorageProvider != null) {
-                            logger.debug("Confirming viewed receipt for message: " + originalMessageId);
-                            List<XMPPCoreStanza> stanzaList = Collections.singletonList(XMPPCoreStanza.getWrapper(originalMessageStanza));
-                            messageDeliveryReceiptsStorageProvider.confirmMessageViewed(from.getBareJID().getFullQualifiedName(), stanzaList);
-                        } else {
-                            logger.error("Couldn't confirm receipt of message: " + originalMessageId + " because messageDeliveryReceiptsStorageProvider could not be found");
-                        }
+                    MessageDeliveryReceiptsStorageProvider messageDeliveryReceiptsStorageProvider = (MessageDeliveryReceiptsStorageProvider) serverRuntimeContext.getStorageProvider(MessageDeliveryReceiptsStorageProvider.class);
+                    if (messageDeliveryReceiptsStorageProvider != null) {
+                        logger.debug("Confirming delivery receipt for message: " + originalMessageId);
+                        List<XMPPCoreStanza> stanzaList = Collections.singletonList(originalMessageStanzaWrapper);
+                        messageDeliveryReceiptsStorageProvider.confirmMessageDelivery(from.getBareJID().getFullQualifiedName(), stanzaList);
                     } else {
-                        logger.error("Couldn't find original message for viewed receipt with messageID of: " + originalMessageId);
+                        logger.error("Couldn't confirm receipt of message: " + originalMessageId + " because messageDeliveryReceiptsStorageProvider could not be found");
                     }
                 } else {
-                    // this is not a message receipt so we just add serverTime attribute to the original message. This will get persisted into offline/online storage so that we can look up this time and include it as an attribute in message delivery receipt
-                    // add server time for getting a centralized server time
-                    serverDeliveryTime = String.valueOf(System.currentTimeMillis());
-                    logger.debug("Found a regular message not a messageDeliveryReceipt. Adding serverDeliveryTime of: " + serverDeliveryTime);
-                    stanzaBuilder.addAttribute(SERVER_DELIVERY_TIME, serverDeliveryTime);
+                    logger.error("Couldn't find original message for messageDelivery receipt with messageID of: " + originalMessageId);
                 }
 
-                for (XMLElement preparedElement : stanza.getInnerElements()) {
-                    if (preparedElement.getName().equalsIgnoreCase("received")) {
-                        XMLElementBuilder receivedBuilder = new XMLElementBuilder(preparedElement.getName(), preparedElement.getNamespaceURI(), preparedElement.getNamespacePrefix());
-                        if (preparedElement.getAttribute("id") != null)
-                            receivedBuilder.addAttribute("id", preparedElement.getAttribute("id").getValue());
-                        if (serverDeliveryTime != null)
-                            receivedBuilder.addAttribute(SERVER_DELIVERY_TIME, serverDeliveryTime);
-                        stanzaBuilder.addPreparedElement(receivedBuilder.build());
+
+            } else if (viewedReceipts != null && !viewedReceipts.isEmpty() && serverRuntimeContext != null) {
+                logger.debug("Found a message with a viewed element -- this is a message viewed receipt: " + stanza.toString());
+                String originalMessageId = viewedReceipts.get(0).getAttributeValue("id");
+                // todo: lookup the original message that was sent to offline/online storage and lookup the time
+                Stanza originalMessageStanza = getOriginalMessageFromReceipt(serverRuntimeContext, viewedReceipts, from);
+                if (originalMessageStanza != null) {
+                    logger.debug("Found original message for viewed receipt with messageId: " + originalMessageId + " stanza: " + originalMessageStanza.toString());
+                    MessageDeliveryReceiptsStorageProvider messageDeliveryReceiptsStorageProvider = (MessageDeliveryReceiptsStorageProvider) serverRuntimeContext.getStorageProvider(MessageDeliveryReceiptsStorageProvider.class);
+                    if (messageDeliveryReceiptsStorageProvider != null) {
+                        logger.debug("Confirming viewed receipt for message: " + originalMessageId);
+                        List<XMPPCoreStanza> stanzaList = Collections.singletonList(XMPPCoreStanza.getWrapper(originalMessageStanza));
+                        messageDeliveryReceiptsStorageProvider.confirmMessageViewed(from.getBareJID().getFullQualifiedName(), stanzaList);
                     } else {
-                        stanzaBuilder.addPreparedElement(preparedElement);
+                        logger.error("Couldn't confirm receipt of message: " + originalMessageId + " because messageDeliveryReceiptsStorageProvider could not be found");
                     }
+                } else {
+                    logger.error("Couldn't find original message for viewed receipt with messageID of: " + originalMessageId);
                 }
-
-                stanza = XMPPCoreStanza.getWrapper(stanzaBuilder.build());
-
+            } else {
+                // this is not a message receipt so we just add serverTime attribute to the original message. This will get persisted into offline/online storage so that we can look up this time and include it as an attribute in message delivery receipt
+                // add server time for getting a centralized server time
+                serverDeliveryTime = String.valueOf(System.currentTimeMillis());
+                logger.debug("Found a regular message not a messageDeliveryReceipt. Adding serverDeliveryTime of: " + serverDeliveryTime);
+                stanzaBuilder.addAttribute(SERVER_DELIVERY_TIME, serverDeliveryTime);
             }
+
+            for (XMLElement preparedElement : stanza.getInnerElements()) {
+                if (preparedElement.getName().equalsIgnoreCase("received")) {
+                    XMLElementBuilder receivedBuilder = new XMLElementBuilder(preparedElement.getName(), preparedElement.getNamespaceURI(), preparedElement.getNamespacePrefix());
+                    if (preparedElement.getAttribute("id") != null)
+                        receivedBuilder.addAttribute("id", preparedElement.getAttribute("id").getValue());
+                    if (serverDeliveryTime != null)
+                        receivedBuilder.addAttribute(SERVER_DELIVERY_TIME, serverDeliveryTime);
+                    stanzaBuilder.addPreparedElement(receivedBuilder.build());
+                } else {
+                    stanzaBuilder.addPreparedElement(preparedElement);
+                }
+            }
+
+            stanza = XMPPCoreStanza.getWrapper(stanzaBuilder.build());
+
+
+            boolean allowStanzaToBeRelayed = true;
+            MobileDeviceMetadataStorageProvider mobileDeviceMetadataStorageProvider = (MobileDeviceMetadataStorageProvider) serverRuntimeContext.getStorageProvider(MobileDeviceMetadataStorageProvider.class);
+            if (mobileDeviceMetadataStorageProvider != null) {
+                List<Integer> buildVersions = mobileDeviceMetadataStorageProvider.getBuildVersionsForUser(from.getFullQualifiedName());
+                Integer maxBuildVersionForUser = Collections.max(buildVersions);
+                if (maxBuildVersionForUser < MINIMUM_XMPP_BUILD_VERSION) {
+                    logger.debug("Could not find a build version that was recent enough to allow a message to be sent: " + maxBuildVersionForUser + " for user: " + from.getFullQualifiedName());
+                    allowStanzaToBeRelayed = false;
+                }
+            }
+
 
             StanzaRelay stanzaRelay = serverRuntimeContext.getStanzaRelay();
             try {
-                stanzaRelay.relay(stanza.getTo(), stanza, new ReturnErrorToSenderFailureStrategy(stanzaRelay));
+                if (allowStanzaToBeRelayed)
+                    stanzaRelay.relay(stanza.getTo(), stanza, new ReturnErrorToSenderFailureStrategy(stanzaRelay));
             } catch (Exception e) {
                 logger.error("Error relaying stanza in MessageHandler: " + stanza.toString(), e);
                 // TODO return error stanza
