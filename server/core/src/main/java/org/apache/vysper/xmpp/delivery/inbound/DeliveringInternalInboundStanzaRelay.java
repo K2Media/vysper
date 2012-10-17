@@ -228,6 +228,10 @@ public class DeliveringInternalInboundStanzaRelay implements StanzaRelay, Manage
         public RelayResult call() {
             RelayResult relayResult = deliver();
             if (relayResult == null || !relayResult.hasProcessingErrors()) {
+                if (offlineStanzaReceiver instanceof OnlineStorageProvider) {
+                    logger.debug("About to persist stanza to OnlineStorageProvider because there were no processing errors but we always persist to OnlineStorageProvider");
+                    ((OnlineStorageProvider) offlineStanzaReceiver).storeStanza(stanza, true);
+                }
                 return relayResult;
             } else {
                 if (containsDeliveredToOfflineProviderException(relayResult.getProcessingErrors())) {
