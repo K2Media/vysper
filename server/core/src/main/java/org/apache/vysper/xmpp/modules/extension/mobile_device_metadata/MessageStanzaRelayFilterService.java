@@ -14,7 +14,5 @@ public interface MessageStanzaRelayFilterService extends ServerRuntimeContextSer
      * @param stanza
      * @return whether to allow message to be sent (true means it will be relayed)
      */
-    public boolean proceedOutboundRelay(Stanza stanza);
-
     public boolean proceedOutboundRelay(Stanza stanza, SessionContext sessionContext);
 }
