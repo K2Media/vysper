@@ -44,8 +44,8 @@ public class QueuedStanzaProcessor implements StanzaProcessor {
     protected StanzaProcessor stanzaProcessor;
 
     public QueuedStanzaProcessor(StanzaProcessor stanzaProcessor) {
-        int coreThreadCount = 10;
-        int maxThreadCount = 20;
+        int coreThreadCount = 36;
+        int maxThreadCount = 72;
         int threadTimeoutSeconds = 2 * 60 * 1000;
         this.executor = new ThreadPoolExecutor(coreThreadCount, maxThreadCount, threadTimeoutSeconds, TimeUnit.SECONDS,
                 new LinkedBlockingQueue<Runnable>());

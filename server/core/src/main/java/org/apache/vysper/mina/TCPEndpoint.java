@@ -86,8 +86,8 @@ public class TCPEndpoint implements Endpoint {
         filterChainBuilder.addLast("xmppCodec", new ProtocolCodecFilter(new XMPPProtocolCodecFactory()));
         filterChainBuilder.addLast("loggingFilter", new StanzaLoggingFilter());
         
-        int coreThreadCount = 10;
-        int maxThreadCount = 20;
+        int coreThreadCount = 20;
+        int maxThreadCount = 72;
         int threadTimeoutSeconds = 2 * 60;
         filterChainBuilder.addLast("executorFilter", new ExecutorFilter(new OrderedThreadPoolExecutor(coreThreadCount, maxThreadCount, threadTimeoutSeconds, TimeUnit.SECONDS)));
         acceptor.setFilterChainBuilder(filterChainBuilder);
