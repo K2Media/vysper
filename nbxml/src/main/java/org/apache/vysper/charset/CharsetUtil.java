@@ -33,10 +33,14 @@ public class CharsetUtil {
     /**
      * Charset decoder for UTF-8
      */
-    public static final CharsetDecoder UTF8_DECODER = Charset.forName("UTF-8").newDecoder();
+    public static CharsetDecoder UTF8_DECODER() {
+        return Charset.forName("UTF-8").newDecoder();
+    }
 
     /**
      * Charset encoder for UTF-8
      */
-    public static final CharsetEncoder UTF8_ENCODER = Charset.forName("UTF-8").newEncoder();
+    public static CharsetEncoder UTF8_ENCODER() {
+        return Charset.forName("UTF-8").newEncoder();
+    }
 }

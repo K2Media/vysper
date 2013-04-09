@@ -120,7 +120,7 @@ public class MessageHandlerRelayTestCase extends TestCase {
         Stanza successfulMessageStanza = StanzaBuilder.createMessageStanza(sender, receiver, "en", "info").build();
         ResponseStanzaContainer responseStanzaContainer = messageHandler.execute(successfulMessageStanza,
                 senderSessionContext.getServerRuntimeContext(), true, senderSessionContext, null);
-        assertEquals(successfulMessageStanza, receiverQueue.getNext());
+        assertEquals(successfulMessageStanza.toString(), receiverQueue.getNext().toString());
 
         Stanza failureMessageStanza = StanzaBuilder.createMessageStanza(sender, noReceiver, "en", "info").build();
         responseStanzaContainer = messageHandler.execute(failureMessageStanza, senderSessionContext

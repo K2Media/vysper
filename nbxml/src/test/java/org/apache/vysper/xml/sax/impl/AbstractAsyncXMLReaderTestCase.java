@@ -144,7 +144,7 @@ public abstract class AbstractAsyncXMLReaderTestCase extends TestCase {
         reader.setContentHandler(handler);
         reader.setErrorHandler(handler);
 
-        reader.parse(IoBuffer.wrap(xml.getBytes("UTF-8")), CharsetUtil.UTF8_DECODER);
+        reader.parse(IoBuffer.wrap(xml.getBytes("UTF-8")), CharsetUtil.UTF8_DECODER());
 
         return handler.getEvents();
     }
